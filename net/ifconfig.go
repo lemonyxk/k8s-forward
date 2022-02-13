@@ -12,6 +12,7 @@ package net
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -43,7 +44,11 @@ func IsLocal() bool {
 		return *isLocal
 	}
 	var appHost = app.RestConfig.Host
-	var res = utils.Addr.IsLocalIP(appHost)
+	u, err := url.Parse(appHost)
+	if err != nil {
+		panic(err)
+	}
+	var res = utils.Addr.IsLocalIP(u.Hostname())
 	isLocal = &res
 	return *isLocal
 }
