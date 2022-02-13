@@ -17,34 +17,56 @@ import (
 	"runtime"
 
 	"github.com/lemoyxk/console"
+	"github.com/lemoyxk/k8s-forward/app"
 	"github.com/lemoyxk/k8s-forward/config"
 	"github.com/lemoyxk/k8s-forward/tools"
+	"github.com/lemoyxk/utils"
 )
 
-func CreateNetWorkByIp(ip string) {
+func CreateNetWorkByIp(pod *config.Pod) {
+	if !IsLocal() && pod.HostNetwork {
+		return
+	}
 	if runtime.GOOS == "linux" {
-		createLinux([]string{ip})
+		createLinux([]string{pod.IP})
 	} else if runtime.GOOS == "darwin" {
-		createDarwin([]string{ip})
+		createDarwin([]string{pod.IP})
 	} else {
 		tools.Exit("not support windows")
 	}
 }
 
+var isLocal *bool
+
+func IsLocal() bool {
+	if isLocal != nil {
+		return *isLocal
+	}
+	var appHost = app.RestConfig.Host
+	var res = utils.Addr.IsLocalIP(appHost)
+	isLocal = &res
+	return *isLocal
+}
+
 func CreateNetWork(record *config.Record) {
+
 	var ip []string
 
 	for i := 0; i < len(record.Services); i++ {
 
-		if record.Services[i].SelectPod == nil {
+		if record.Services[i].Pod == nil {
 			continue
 		}
 
 		if record.Services[i].Switch != nil {
-			ip = append(ip, record.Services[i].Switch.Pod.IP)
+			if !IsLocal() || !record.Services[i].Switch.Pod.HostNetwork {
+				ip = append(ip, record.Services[i].Switch.Pod.IP)
+			}
 		}
 
-		ip = append(ip, record.Services[i].SelectPod.IP)
+		if !IsLocal() || !record.Services[i].Pod.HostNetwork {
+			ip = append(ip, record.Services[i].Pod.IP)
+		}
 	}
 
 	if runtime.GOOS == "linux" {
@@ -56,11 +78,14 @@ func CreateNetWork(record *config.Record) {
 	}
 }
 
-func DeleteNetWorkByIp(ip string) {
+func DeleteNetWorkByIp(pod *config.Pod) {
+	if !IsLocal() && pod.HostNetwork {
+		return
+	}
 	if runtime.GOOS == "linux" {
-		deleteLinux([]string{ip})
+		deleteLinux([]string{pod.IP})
 	} else if runtime.GOOS == "darwin" {
-		deleteDarwin([]string{ip})
+		deleteDarwin([]string{pod.IP})
 	} else {
 		tools.Exit("not support windows")
 	}
@@ -70,15 +95,19 @@ func DeleteNetWork(record *config.Record) {
 	var ip []string
 
 	for i := 0; i < len(record.Services); i++ {
-		if record.Services[i].SelectPod == nil {
+		if record.Services[i].Pod == nil {
 			continue
 		}
 
 		if record.Services[i].Switch != nil {
-			ip = append(ip, record.Services[i].Switch.Pod.IP)
+			if !IsLocal() || !record.Services[i].Switch.Pod.HostNetwork {
+				ip = append(ip, record.Services[i].Switch.Pod.IP)
+			}
 		}
 
-		ip = append(ip, record.Services[i].SelectPod.IP)
+		if !IsLocal() || !record.Services[i].Pod.HostNetwork {
+			ip = append(ip, record.Services[i].Pod.IP)
+		}
 	}
 
 	if runtime.GOOS == "linux" {

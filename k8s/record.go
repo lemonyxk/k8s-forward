@@ -64,10 +64,11 @@ func GetRecord() *config.Record {
 	var pods []*config.Pod
 	for i := 0; i < len(ps.Items); i++ {
 		pods = append(pods, &config.Pod{
-			Namespace: ps.Items[i].Namespace,
-			Name:      ps.Items[i].Name,
-			IP:        ps.Items[i].Status.PodIP,
-			Labels:    ps.Items[i].Labels,
+			Namespace:   ps.Items[i].Namespace,
+			Name:        ps.Items[i].Name,
+			IP:          ps.Items[i].Status.PodIP,
+			Labels:      ps.Items[i].Labels,
+			HostNetwork: ps.Items[i].Spec.HostNetwork,
 		})
 	}
 
@@ -83,7 +84,7 @@ func GetRecord() *config.Record {
 			}
 
 			if Match(pod.Labels, service.Selector) {
-				service.SelectPod = pod
+				service.Pod = pod
 				break
 			}
 		}

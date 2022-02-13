@@ -137,13 +137,19 @@ func doRecover(resource string, namespace string, name string) string {
 		return err.Error()
 	}
 
-	service.SelectPod = &config.Pod{Namespace: pod.Namespace, Name: pod.Name, IP: pod.Status.PodIP, Labels: pod.Labels}
+	service.Pod = &config.Pod{
+		Namespace:   pod.Namespace,
+		Name:        pod.Name,
+		IP:          pod.Status.PodIP,
+		Labels:      pod.Labels,
+		HostNetwork: pod.Spec.HostNetwork,
+	}
 	k8s.SaveRecordToFile(app.Record)
 
-	net.CreateNetWorkByIp(service.SelectPod.IP)
+	net.CreateNetWorkByIp(service.Pod)
 
 	// delete switch pod ip
-	net.DeleteNetWorkByIp(service.Switch.Pod.IP)
+	net.DeleteNetWorkByIp(service.Switch.Pod)
 
 	service.Switch.Deployment = nil
 	k8s.SaveRecordToFile(app.Record)
@@ -151,7 +157,7 @@ func doRecover(resource string, namespace string, name string) string {
 	service.Switch.Pod = nil
 	k8s.SaveRecordToFile(app.Record)
 
-	service.Switch.StopChan <- struct{}{}
+	service.Switch.StopForward <- struct{}{}
 	service.Switch.StopSSH <- struct{}{}
 
 	service.Switch = nil

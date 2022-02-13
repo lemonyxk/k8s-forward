@@ -26,7 +26,7 @@ import (
 
 func ForwardServiceAll() {
 	for i := 0; i < len(app.Record.Services); i++ {
-		if app.Record.Services[i].StopChan == nil {
+		if app.Record.Services[i].StopForward == nil {
 			var service = app.Record.Services[i]
 			_, err := ForwardService(service)
 			if err != nil {
@@ -39,9 +39,9 @@ func ForwardServiceAll() {
 
 func UnForwardServiceAll() {
 	for i := 0; i < len(app.Record.Services); i++ {
-		if app.Record.Services[i].StopChan != nil {
+		if app.Record.Services[i].StopForward != nil {
 			var service = app.Record.Services[i]
-			service.StopChan <- struct{}{}
+			service.StopForward <- struct{}{}
 		}
 	}
 }
@@ -52,11 +52,11 @@ func ForwardService(service *config.Service) (chan struct{}, error) {
 
 	var client = app.Client
 
-	if service.SelectPod == nil {
+	if service.Pod == nil {
 		return nil, fmt.Errorf("service %s not found", service.Name)
 	}
 
-	var pod = service.SelectPod
+	var pod = service.Pod
 
 	req := client.CoreV1().RESTClient().Post().Namespace(service.Namespace).
 		Resource("pods").Name(pod.Name).SubResource(strings.ToLower("PortForward"))
@@ -86,7 +86,7 @@ func ForwardService(service *config.Service) (chan struct{}, error) {
 		ch <- struct{}{}
 
 		service.Status = config.Start
-		service.StopChan = stopChan
+		service.StopForward = stopChan
 
 		console.Info("service forward:", service.Name, pod.IP, ports, "forward start")
 	}()

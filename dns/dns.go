@@ -78,8 +78,8 @@ func (t *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 			var ip = ""
 
-			if service.SelectPod != nil {
-				ip = service.SelectPod.IP
+			if service.Pod != nil {
+				ip = service.Pod.IP
 			}
 
 			if service.Switch != nil {

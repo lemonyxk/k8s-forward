@@ -39,26 +39,27 @@ type Service struct {
 	ClusterIP string
 	Port      []v1.ServicePort
 	Selector  map[string]string
-	SelectPod *Pod
+	Pod       *Pod
 
-	Status   Status
-	StopChan chan struct{} `json:"-"`
+	Status      Status
+	StopForward chan struct{} `json:"-"`
 
 	Switch *Switch
 }
 
 type Switch struct {
-	Scale      *v12.Scale
-	Deployment *v13.Deployment
-	Pod        *Pod
-	Status     Status
-	StopChan   chan struct{} `json:"-"`
-	StopSSH    chan struct{} `json:"-"`
+	Scale       *v12.Scale
+	Deployment  *v13.Deployment
+	Pod         *Pod
+	Status      Status
+	StopForward chan struct{} `json:"-"`
+	StopSSH     chan struct{} `json:"-"`
 }
 
 type Pod struct {
-	Namespace string
-	Name      string
-	IP        string
-	Labels    map[string]string
+	Namespace   string
+	Name        string
+	IP          string
+	Labels      map[string]string
+	HostNetwork bool
 }

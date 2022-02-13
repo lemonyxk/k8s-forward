@@ -93,12 +93,12 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 	console.Info("match service:", service.Name, "replicas:", scale.Spec.Replicas)
 
 	if service.Status == config.Start {
-		service.StopChan <- struct{}{}
+		service.StopForward <- struct{}{}
 	}
 
 	// delete old pod ip
-	net.DeleteNetWorkByIp(service.SelectPod.IP)
-	service.SelectPod = nil
+	net.DeleteNetWorkByIp(service.Pod)
+	service.Pod = nil
 	k8s.SaveRecordToFile(app.Record)
 
 	us, err := UpdateScale(scale, 0)
@@ -168,10 +168,16 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 
 	console.Info("create deployment:", deployment.ObjectMeta.Name)
 
-	service.Switch.Pod = &config.Pod{Namespace: service.Namespace, Name: pod.ObjectMeta.Name, IP: pod.Status.PodIP, Labels: pod.Labels}
+	service.Switch.Pod = &config.Pod{
+		Namespace:   service.Namespace,
+		Name:        pod.ObjectMeta.Name,
+		IP:          pod.Status.PodIP,
+		Labels:      pod.Labels,
+		HostNetwork: pod.Spec.HostNetwork,
+	}
 	k8s.SaveRecordToFile(app.Record)
 
-	net.CreateNetWorkByIp(pod.Status.PodIP)
+	net.CreateNetWorkByIp(service.Switch.Pod)
 
 	ch, st, err := k8s.ForwardPod(namespace, pod.ObjectMeta.Name, []string{"0.0.0.0"}, []string{"2222:2222"})
 	if err != nil {
@@ -180,7 +186,7 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 
 	<-ch
 
-	service.Switch.StopChan = st
+	service.Switch.StopForward = st
 
 	// ssh
 	var remoteAddr = fmt.Sprintf("%s:%d", pod.Status.PodIP, service.Port[0].Port)

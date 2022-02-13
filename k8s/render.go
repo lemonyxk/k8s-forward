@@ -26,15 +26,15 @@ func Render() {
 
 	for i := 0; i < len(app.Record.Services); i++ {
 
-		if app.Record.Services[i].SelectPod == nil {
+		if app.Record.Services[i].Pod == nil {
 			continue
 		}
 
 		table.Row(
 			app.Record.Services[i].Namespace,
 			app.Record.Services[i].Name,
-			app.Record.Services[i].SelectPod.Name,
-			app.Record.Services[i].SelectPod.IP,
+			app.Record.Services[i].Pod.Name,
+			app.Record.Services[i].Pod.IP,
 			strings.Join(utils.Extract.Src(app.Record.Services[i].Port).Field("Port").String(), ","),
 		)
 	}

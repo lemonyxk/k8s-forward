@@ -10,7 +10,7 @@ func GetDNSDomain() map[string]*config.Service {
 	var dnsDomain = make(map[string]*config.Service)
 
 	for i := 0; i < len(app.Record.Services); i++ {
-		if app.Record.Services[i].SelectPod == nil {
+		if app.Record.Services[i].Pod == nil {
 			continue
 		}
 
