@@ -24,7 +24,7 @@ import (
 )
 
 func CreateNetWorkByIp(pod *config.Pod) {
-	if !IsLocal() && pod.HostNetwork {
+	if IsLocal() && pod.HostNetwork {
 		return
 	}
 	if runtime.GOOS == "linux" {
@@ -79,7 +79,7 @@ func CreateNetWork(record *config.Record) {
 }
 
 func DeleteNetWorkByIp(pod *config.Pod) {
-	if !IsLocal() && pod.HostNetwork {
+	if IsLocal() && pod.HostNetwork {
 		return
 	}
 	if runtime.GOOS == "linux" {
