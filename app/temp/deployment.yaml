@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ssh-server
+  labels:
+    app: center-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: center-server
+  template:
+    metadata:
+      labels:
+        app: center-server
+    spec:
+      containers:
+        - name: sshd
+          image: a1354243/root-ssh-server:latest
+          ports:
+            - name: ssh
+              containerPort: 22
+#          env:
+#            - name: PUID
+#              value: "1000"
+#            - name: PGID
+#              value: "1000"
+#            - name: TZ
+#              value: America/Los_Angeles
+#            - name: USER_NAME
+#              value: k8s-forward
+#            - name: SUDO_ACCESS
+#              value: "true"
+#            - name: USER_PASSWORD
+#              value: k8s-forward
+#            - name: PASSWORD_ACCESS
+#              value: "true"
+#            - name: DOCKER_MODS
+#              value: linuxserver/mods:openssh-server-ssh-tunnel
+
