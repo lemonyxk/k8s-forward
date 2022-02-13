@@ -20,5 +20,8 @@ Usage: k8s-forward clean
 
 Usage: k8s-forward switch [args]
   -- switch the kubernetes cluster
+
+Usage: k8s-forward recover [args]
+  -- switch the kubernetes cluster
 `
 }

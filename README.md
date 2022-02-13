@@ -25,16 +25,14 @@ How to use:
   | default   | discover-server-2 | discover-server-2-5bdbc56657-vspl5 | 172.16.100.158 | 11000,12000,13000 |
   | default   | nginx             | web-0                              | 10.42.9.207    | 80                |
   +-----------+-------------------+------------------------------------+----------------+-------------------+
-
-
+  
   now run the command:
   
   $ curl nginx
   
   that's all.
 
-    
-2.second, If you want to forward online traffic to the local port, 
+2.second, if you want to forward remote to the local port, 
   open another terminal and run the command:
 
   $ sudo k8s-forward switch deployment nginx -n default
@@ -60,4 +58,32 @@ How to use:
   $ sudo k8s-forward clean
   
   it will run automatically when the program ends.
+  
+5.ssh:
+
+  1.forward local to remote:
+    
+    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -L -p 123456
+  
+  2.forward remote to local:
+  
+    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456
+  
+  3.socks5:
+
+    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 -S
+  
+  4.tcp:
+  
+    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 --tcp localhost:12347
+  
+  5.http:
+
+    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 --http[https] www.domain.com
+  
+  or:
+
+    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 --http[https] a b
+  
+  this will replace the a in the original host with b.      
 ```
