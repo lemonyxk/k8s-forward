@@ -34,13 +34,13 @@ func main() {
 
 	var kubePath = flag.String("kube", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kube config file")
 	var recordPath = flag.String("record", filepath.Join(home, ".k8s-forward", "record.json"), "(optional) absolute path to the kube record file")
-	var debug = flag.Bool("debug", false, "(optional) enable debug mode")
+	// var debug = flag.Bool("debug", false, "(optional) enable debug mode")
 
 	flag.Parse()
 
-	if *debug {
-		console.SetFlags(console.FILE)
-	}
+	// if *debug {
+	console.SetFlags(console.FILE)
+	// }
 
 	app.Config = &config.Config{KubePath: *kubePath, RecordPath: *recordPath}
 

@@ -14,9 +14,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/lemoyxk/console"
+	"github.com/lemoyxk/k8s-forward/tools"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -58,7 +60,7 @@ func Server(user, password, host string, port int) (*ssh.Session, error) {
 	return session, nil
 }
 
-func LocalForward(username, password, serverAddr, remoteAddr, localAddr string) (chan struct{}, error) {
+func LocalForward(username, password, serverAddr, remoteAddr, localAddr string, args ...string) (chan struct{}, error) {
 	// Setup SSH config (type *ssh.ClientConfig)
 	config := &ssh.ClientConfig{
 		User:    username,
@@ -67,6 +69,13 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string) 
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			return nil
 		},
+	}
+
+	// Setup sshClientConn (type *ssh.ClientConn)
+	console.Info(serverAddr)
+	sshClientConn, err := ssh.Dial("tcp", serverAddr, config)
+	if err != nil {
+		return nil, err
 	}
 
 	// Setup localListener (type net.Listener)
@@ -81,8 +90,57 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string) 
 		select {
 		case <-stopChan:
 			_ = localListener.Close()
+			_ = sshClientConn.Close()
 		}
 	}()
+
+	// --------
+
+	// http proxy
+	var list []string
+	var http = tools.GetArgs([]string{"http", "--http", "https", "--https"}, args)
+	if http != "" {
+		list = append(list, http)
+		var to = tools.GetArgs([]string{http}, args)
+		if to != "" {
+			list = append(list, to)
+		}
+	}
+
+	if len(list) > 0 {
+		l, err := sshClientConn.Listen("tcp", remoteAddr)
+		if err != nil {
+			return nil, err
+		}
+		if strings.HasSuffix(http, "http") {
+			go Http(l, "http", list)
+		}
+		if strings.HasSuffix(http, "https") {
+			go Http(l, "https", list)
+		}
+	}
+
+	// tcp proxy
+	var tcp = tools.GetArgs([]string{"tcp", "--tcp"}, args)
+	if tcp != "" {
+		l, err := sshClientConn.Listen("tcp", remoteAddr)
+		if err != nil {
+			return nil, err
+		}
+		go Tcp(l, tcp)
+	}
+
+	// socks5 proxy
+	var socks5 = tools.HasArgs("-S", args)
+	if socks5 {
+		l, err := sshClientConn.Listen("tcp", remoteAddr)
+		if err != nil {
+			return nil, err
+		}
+		go Socks5(l)
+	}
+
+	// --------
 
 	go func() {
 		for {
@@ -95,14 +153,6 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string) 
 			console.Info("localConn:", localConn.RemoteAddr().String())
 
 			go func() {
-
-				// Setup sshClientConn (type *ssh.ClientConn)
-				sshClientConn, err := ssh.Dial("tcp", serverAddr, config)
-				if err != nil {
-					console.Error(err)
-					return
-				}
-
 				// Setup sshConn (type net.Conn)
 				sshConn, err := sshClientConn.Dial("tcp", remoteAddr)
 				if err != nil {
@@ -116,7 +166,6 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string) 
 					if err != nil {
 						console.Error(err)
 					}
-					_ = sshClientConn.Close()
 					_ = sshConn.Close()
 					_ = localConn.Close()
 				}()
@@ -127,7 +176,6 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string) 
 					if err != nil {
 						console.Error(err)
 					}
-					_ = sshClientConn.Close()
 					_ = sshConn.Close()
 					_ = localConn.Close()
 				}()
@@ -139,7 +187,7 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string) 
 	return stopChan, nil
 }
 
-func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string) (chan struct{}, error) {
+func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string, args ...string) (chan struct{}, error) {
 	// Setup SSH config (type *ssh.ClientConfig)
 	config := ssh.ClientConfig{
 		User:    username,
@@ -170,6 +218,54 @@ func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string)
 			_ = sshClientConn.Close()
 		}
 	}()
+
+	// -----------
+
+	// http proxy
+	var list []string
+	var http = tools.GetArgs([]string{"http", "--http", "https", "--https"}, args)
+	if http != "" {
+		list = append(list, http)
+		var to = tools.GetArgs([]string{http}, args)
+		if to != "" {
+			list = append(list, to)
+		}
+	}
+
+	if len(list) > 0 {
+		l, err := net.Listen("tcp", localAddr)
+		if err != nil {
+			return nil, err
+		}
+		if strings.HasSuffix(http, "http") {
+			go Http(l, "http", list)
+		}
+		if strings.HasSuffix(http, "https") {
+			go Http(l, "https", list)
+		}
+	}
+
+	// tcp proxy
+	var tcp = tools.GetArgs([]string{"tcp", "--tcp"}, args)
+	if tcp != "" {
+		l, err := net.Listen("tcp", localAddr)
+		if err != nil {
+			return nil, err
+		}
+		go Tcp(l, tcp)
+	}
+
+	// socks5 proxy
+	var socks5 = tools.HasArgs("-S", args)
+	if socks5 {
+		l, err := net.Listen("tcp", localAddr)
+		if err != nil {
+			return nil, err
+		}
+		go Socks5(l)
+	}
+
+	// -----------
 
 	go func() {
 

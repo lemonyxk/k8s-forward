@@ -11,6 +11,7 @@
 package ssh
 
 import (
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -19,30 +20,38 @@ import (
 	"github.com/lemoyxk/console"
 )
 
-func Http(scheme, addr string, list []string) {
+type Handler struct {
+	Scheme string
+	List   []string
+}
 
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if len(h.List) == 1 {
+		r.Host = h.List[0]
+	}
+
+	if len(h.List) == 2 {
+		r.Host = strings.ReplaceAll(r.Host, h.List[0], h.List[1])
+	}
+
+	httputil.
+		NewSingleHostReverseProxy(&url.URL{Scheme: h.Scheme, Host: r.Host}).
+		ServeHTTP(w, r)
+}
+
+func Http(l net.Listener, scheme string, list []string) {
 	if len(list) == 0 {
 		console.Error("[-] no target")
 		return
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	var handler = &Handler{Scheme: scheme, List: list}
 
-		if len(list) == 1 {
-			r.Host = list[0]
-		}
+	var server = http.Server{Handler: handler}
 
-		if len(list) == 2 {
-			r.Host = strings.ReplaceAll(r.Host, list[0], list[1])
-		}
-
-		httputil.
-			NewSingleHostReverseProxy(&url.URL{Scheme: scheme, Host: r.Host}).
-			ServeHTTP(w, r)
-	})
-
-	err := http.ListenAndServe(addr, nil)
+	err := server.Serve(l)
 	if err != nil {
 		console.Error(err)
+		return
 	}
 }

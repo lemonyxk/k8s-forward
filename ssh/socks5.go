@@ -20,17 +20,11 @@ import (
 	"github.com/lemoyxk/console"
 )
 
-func Socks5(addr string) {
-
-	var conn, err = net.Listen("tcp", addr)
-	if err != nil {
-		panic(err)
-	}
-
-	console.Info("Socks5 server listen on:", addr)
+func Socks5(l net.Listener) {
+	console.Info("Socks5 server listen on:", l.Addr().String())
 
 	for {
-		client, err := conn.Accept()
+		client, err := l.Accept()
 		if err != nil {
 			break
 		}
@@ -153,7 +147,7 @@ func Socks5Forward(client, target net.Conn) {
 	forward := func(src, dst net.Conn) {
 		_, err := io.Copy(src, dst)
 		if err != nil {
-			console.Error()
+			console.Error(err)
 		}
 		_ = src.Close()
 		_ = dst.Close()

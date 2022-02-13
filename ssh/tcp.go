@@ -17,16 +17,10 @@ import (
 	"github.com/lemoyxk/console"
 )
 
-func Tcp(local string, remote string) {
-	var localClient, err = net.Listen("tcp", local)
-	if err != nil {
-		console.Error(err)
-		return
-	}
+func Tcp(l net.Listener, remote string) {
 
 	for {
-
-		localConn, err := localClient.Accept()
+		localConn, err := l.Accept()
 		if err != nil {
 			break
 		}
@@ -40,7 +34,7 @@ func Tcp(local string, remote string) {
 		handle(localConn, remoteConn)
 	}
 
-	_ = localClient.Close()
+	_ = l.Close()
 }
 
 func handle(localConn net.Conn, remoteConn net.Conn) {
