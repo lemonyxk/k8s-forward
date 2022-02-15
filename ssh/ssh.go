@@ -223,10 +223,10 @@ func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string,
 
 	// http proxy
 	var list []string
-	var http = tools.GetArgs([]string{"http", "--http", "https", "--https"}, args)
-	if http != "" {
-		list = append(list, http)
-		var to = tools.GetArgs([]string{http}, args)
+	var flag, arg = tools.GetFlagAndArgs([]string{"http", "--http", "https", "--https"}, args)
+	if arg != "" {
+		list = append(list, arg)
+		var to = tools.GetArgs([]string{arg}, args)
 		if to != "" {
 			list = append(list, to)
 		}
@@ -237,10 +237,10 @@ func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string,
 		if err != nil {
 			return nil, err
 		}
-		if strings.HasSuffix(http, "http") {
+		if strings.HasSuffix(flag, "http") {
 			go Http(l, "http", list)
 		}
-		if strings.HasSuffix(http, "https") {
+		if strings.HasSuffix(flag, "https") {
 			go Http(l, "https", list)
 		}
 	}

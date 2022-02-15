@@ -62,6 +62,19 @@ func GetArgs(flag []string, args []string) string {
 	return ""
 }
 
+func GetFlagAndArgs(flag []string, args []string) (string, string) {
+	for i := 0; i < len(args); i++ {
+		for j := 0; j < len(flag); j++ {
+			if args[i] == flag[j] {
+				if i+1 < len(args) {
+					return flag[j], args[i+1]
+				}
+			}
+		}
+	}
+	return "", ""
+}
+
 func HasArgs(flag string, args []string) bool {
 	for i := 0; i < len(args); i++ {
 		if args[i] == flag {
