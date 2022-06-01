@@ -17,7 +17,7 @@ import (
 	"github.com/lemoyxk/console"
 	"github.com/lemoyxk/k8s-forward/ssh"
 	"github.com/lemoyxk/k8s-forward/tools"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 func SSH(args []string) {
@@ -43,7 +43,7 @@ func SSH(args []string) {
 	var password = tools.GetArgs([]string{"password", "-p", "--password"}, args)
 	if password == "" {
 		console.Infof("Password: ")
-		var bts, err = terminal.ReadPassword(int(os.Stdin.Fd()))
+		var bts, err = term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			console.Error(err)
 			return

@@ -9,6 +9,7 @@ require (
 	github.com/lemoyxk/utils v0.0.0-20220114121815-babab66c4fe8
 	github.com/miekg/dns v1.1.46
 	golang.org/x/crypto v0.0.0-20220210151621-f4118a5b28e2
+	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467
 	k8s.io/api v0.23.3
 	k8s.io/apimachinery v0.23.3
 	k8s.io/client-go v0.23.3
@@ -43,7 +44,6 @@ require (
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
 	golang.org/x/sys v0.0.0-20211110154304-99a53858aa08 // indirect
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	golang.org/x/tools v0.1.6-0.20210726203631-07bc1bf47fb2 // indirect
