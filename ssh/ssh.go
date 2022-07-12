@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/lemoyxk/console"
@@ -96,48 +95,50 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string, 
 
 	// --------
 
-	// http proxy
-	var list []string
-	var http = tools.GetArgs([]string{"http", "--http", "https", "--https"}, args)
-	if http != "" {
-		list = append(list, http)
-		var to = tools.GetArgs([]string{http}, args)
-		if to != "" {
-			list = append(list, to)
-		}
-	}
-
-	if len(list) > 0 {
-		l, err := sshClientConn.Listen("tcp", remoteAddr)
-		if err != nil {
-			return nil, err
-		}
-		if strings.HasSuffix(http, "http") {
-			go Http(l, "http", list)
-		}
-		if strings.HasSuffix(http, "https") {
-			go Http(l, "https", list)
-		}
-	}
-
-	// tcp proxy
-	var tcp = tools.GetArgs([]string{"tcp", "--tcp"}, args)
-	if tcp != "" {
-		l, err := sshClientConn.Listen("tcp", remoteAddr)
-		if err != nil {
-			return nil, err
-		}
-		go Tcp(l, tcp)
-	}
-
-	// socks5 proxy
-	var socks5 = tools.HasArgs("-S", args)
-	if socks5 {
+	var proxyMode = tools.GetArgs([]string{"proxy", "--proxy"}, args)
+	switch proxyMode {
+	case "socks5":
+		// socks5 proxy
 		l, err := sshClientConn.Listen("tcp", remoteAddr)
 		if err != nil {
 			return nil, err
 		}
 		go Socks5(l)
+
+	case "tcp":
+		// tcp proxy
+		var target = tools.GetArgs([]string{proxyMode}, args)
+		if target != "" {
+			l, err := sshClientConn.Listen("tcp", remoteAddr)
+			if err != nil {
+				return nil, err
+			}
+			go Tcp(l, target)
+		}
+
+	case "http", "https":
+		// http proxy
+		var list []string
+		var target = tools.GetArgs([]string{proxyMode}, args)
+		if target != "" {
+			list = append(list, target)
+			var to = tools.GetArgs([]string{target}, args)
+			if to != "" {
+				list = append(list, to)
+			}
+		}
+
+		l, err := sshClientConn.Listen("tcp", remoteAddr)
+		if err != nil {
+			return nil, err
+		}
+		if proxyMode == "http" {
+			go Http(l, "http", list)
+		}
+		if proxyMode == "https" {
+			go Http(l, "https", list)
+		}
+
 	}
 
 	// --------
@@ -221,48 +222,50 @@ func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string,
 
 	// -----------
 
-	// http proxy
-	var list []string
-	var flag, arg = tools.GetFlagAndArgs([]string{"http", "--http", "https", "--https"}, args)
-	if arg != "" {
-		list = append(list, arg)
-		var to = tools.GetArgs([]string{arg}, args)
-		if to != "" {
-			list = append(list, to)
-		}
-	}
-
-	if len(list) > 0 {
-		l, err := net.Listen("tcp", localAddr)
-		if err != nil {
-			return nil, err
-		}
-		if strings.HasSuffix(flag, "http") {
-			go Http(l, "http", list)
-		}
-		if strings.HasSuffix(flag, "https") {
-			go Http(l, "https", list)
-		}
-	}
-
-	// tcp proxy
-	var tcp = tools.GetArgs([]string{"tcp", "--tcp"}, args)
-	if tcp != "" {
-		l, err := net.Listen("tcp", localAddr)
-		if err != nil {
-			return nil, err
-		}
-		go Tcp(l, tcp)
-	}
-
-	// socks5 proxy
-	var socks5 = tools.HasArgs("-S", args)
-	if socks5 {
+	var proxyMode = tools.GetArgs([]string{"proxy", "--proxy"}, args)
+	switch proxyMode {
+	case "socks5":
+		// socks5 proxy
 		l, err := net.Listen("tcp", localAddr)
 		if err != nil {
 			return nil, err
 		}
 		go Socks5(l)
+
+	case "tcp":
+		// tcp proxy
+		var target = tools.GetArgs([]string{proxyMode}, args)
+		if target != "" {
+			l, err := net.Listen("tcp", localAddr)
+			if err != nil {
+				return nil, err
+			}
+			go Tcp(l, target)
+		}
+
+	case "http", "https":
+		// http proxy
+		var list []string
+		var target = tools.GetArgs([]string{proxyMode}, args)
+		if target != "" {
+			list = append(list, target)
+			var to = tools.GetArgs([]string{target}, args)
+			if to != "" {
+				list = append(list, to)
+			}
+		}
+
+		l, err := net.Listen("tcp", localAddr)
+		if err != nil {
+			return nil, err
+		}
+		if proxyMode == "http" {
+			go Http(l, "http", list)
+		}
+		if proxyMode == "https" {
+			go Http(l, "https", list)
+		}
+
 	}
 
 	// -----------

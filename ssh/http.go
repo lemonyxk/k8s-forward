@@ -34,22 +34,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.Host = strings.ReplaceAll(r.Host, h.List[0], h.List[1])
 	}
 
-	httputil.
-		NewSingleHostReverseProxy(&url.URL{Scheme: h.Scheme, Host: r.Host}).
-		ServeHTTP(w, r)
+	var proxy = httputil.NewSingleHostReverseProxy(&url.URL{Scheme: h.Scheme, Host: r.Host})
+
+	proxy.ServeHTTP(w, r)
+
 }
 
 func Http(l net.Listener, scheme string, list []string) {
-	if len(list) == 0 {
-		console.Error("[-] no target")
-		return
-	}
+	// if len(list) == 0 {
+	// 	console.Error("[-] no target")
+	// 	return
+	// }
 
 	var handler = &Handler{Scheme: scheme, List: list}
 
-	var server = http.Server{Handler: handler}
+	var server = http.Server{
+		Handler: handler,
+	}
 
-	err := server.Serve(l)
+	var err = server.Serve(l)
 	if err != nil {
 		console.Error(err)
 		return
