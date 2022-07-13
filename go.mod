@@ -1,4 +1,4 @@
-module github.com/lemoyxk/k8s-forward
+module github.com/lemonyxk/k8s-forward
 
 go 1.17
 
