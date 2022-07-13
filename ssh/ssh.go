@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/lemoyxk/console"
@@ -59,6 +61,26 @@ func Server(user, password, host string, port int) (*ssh.Session, error) {
 	return session, nil
 }
 
+func sshListen(sshClientConn *ssh.Client, remoteAddr string) (net.Listener, error) {
+	l, err := sshClientConn.Listen("tcp", remoteAddr)
+	if err != nil {
+		// net broken, not closed
+		if strings.HasSuffix(err.Error(), "tcpip-forward request denied by peer") {
+			conn, e := sshClientConn.Dial("tcp", remoteAddr)
+			if e != nil {
+				return nil, e
+			}
+			// send a request to close the connection
+			_, _ = conn.Write(nil)
+			time.Sleep(time.Second)
+			return sshListen(sshClientConn, remoteAddr)
+		}
+		return nil, err
+	}
+
+	return l, nil
+}
+
 func LocalForward(username, password, serverAddr, remoteAddr, localAddr string, args ...string) (chan struct{}, error) {
 	// Setup SSH config (type *ssh.ClientConfig)
 	config := &ssh.ClientConfig{
@@ -71,11 +93,20 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string, 
 	}
 
 	// Setup sshClientConn (type *ssh.ClientConn)
-	console.Info(serverAddr)
 	sshClientConn, err := ssh.Dial("tcp", serverAddr, config)
 	if err != nil {
 		return nil, err
 	}
+
+	// create session
+	session, err := sshClientConn.NewSession()
+	if err != nil {
+		return nil, err
+	}
+
+	session.Stdout = os.Stdout
+	session.Stderr = os.Stderr
+	session.Stdin = os.Stdin
 
 	// Setup localListener (type net.Listener)
 	localListener, err := net.Listen("tcp", localAddr)
@@ -83,13 +114,35 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string, 
 		return nil, err
 	}
 
+	console.Info("LocalForward", localAddr, "to", remoteAddr)
+
+	var closeFn = func() {
+		_ = localListener.Close()
+		_ = sshClientConn.Close()
+		_ = session.Close()
+		console.Info("Close LocalForward")
+	}
+
 	var stopChan = make(chan struct{}, 1)
 
 	go func() {
 		select {
 		case <-stopChan:
-			_ = localListener.Close()
-			_ = sshClientConn.Close()
+			closeFn()
+		}
+	}()
+
+	var ticker = time.NewTicker(time.Second)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				_, err := session.SendRequest(config.User, false, nil)
+				if err != nil {
+					closeFn()
+					return
+				}
+			}
 		}
 	}()
 
@@ -99,7 +152,7 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string, 
 	switch proxyMode {
 	case "socks5":
 		// socks5 proxy
-		l, err := sshClientConn.Listen("tcp", remoteAddr)
+		l, err := sshListen(sshClientConn, remoteAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -109,7 +162,7 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string, 
 		// tcp proxy
 		var target = tools.GetArgs([]string{proxyMode}, args)
 		if target != "" {
-			l, err := sshClientConn.Listen("tcp", remoteAddr)
+			l, err := sshListen(sshClientConn, remoteAddr)
 			if err != nil {
 				return nil, err
 			}
@@ -118,27 +171,11 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string, 
 
 	case "http", "https":
 		// http proxy
-		var list []string
-		var target = tools.GetArgs([]string{proxyMode}, args)
-		if target != "" {
-			list = append(list, target)
-			var to = tools.GetArgs([]string{target}, args)
-			if to != "" {
-				list = append(list, to)
-			}
-		}
-
-		l, err := sshClientConn.Listen("tcp", remoteAddr)
+		l, err := sshListen(sshClientConn, remoteAddr)
 		if err != nil {
 			return nil, err
 		}
-		if proxyMode == "http" {
-			go Http(l, "http", list)
-		}
-		if proxyMode == "https" {
-			go Http(l, "https", list)
-		}
-
+		go Http(l)
 	}
 
 	// --------
@@ -148,35 +185,27 @@ func LocalForward(username, password, serverAddr, remoteAddr, localAddr string, 
 			// Setup localConn (type net.Conn)
 			localConn, err := localListener.Accept()
 			if err != nil {
-				return
+				break
 			}
-
-			console.Info("localConn:", localConn.RemoteAddr().String())
 
 			go func() {
 				// Setup sshConn (type net.Conn)
 				sshConn, err := sshClientConn.Dial("tcp", remoteAddr)
 				if err != nil {
-					console.Error(err)
+					console.Error("Dial RemoteAddr:", err)
 					return
 				}
 
 				// Copy localConn.Reader to sshConn.Writer
 				go func() {
-					_, err = io.Copy(sshConn, localConn)
-					if err != nil {
-						console.Error(err)
-					}
+					_, _ = io.Copy(sshConn, localConn)
 					_ = sshConn.Close()
 					_ = localConn.Close()
 				}()
 
 				// Copy sshConn.Reader to localConn.Writer
 				go func() {
-					_, err = io.Copy(localConn, sshConn)
-					if err != nil {
-						console.Error(err)
-					}
+					_, _ = io.Copy(localConn, sshConn)
 					_ = sshConn.Close()
 					_ = localConn.Close()
 				}()
@@ -205,9 +234,28 @@ func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string,
 		return nil, err
 	}
 
-	remoteListener, err := sshClientConn.Listen("tcp", remoteAddr)
+	// create session
+	session, err := sshClientConn.NewSession()
 	if err != nil {
 		return nil, err
+	}
+
+	session.Stdout = os.Stdout
+	session.Stderr = os.Stderr
+	session.Stdin = os.Stdin
+
+	remoteListener, err := sshListen(sshClientConn, remoteAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	console.Info("RemoteForward", remoteAddr, "to", localAddr)
+
+	var closeFn = func() {
+		_ = remoteListener.Close()
+		_ = sshClientConn.Close()
+		_ = session.Close()
+		console.Info("Close RemoteForward")
 	}
 
 	var stopChan = make(chan struct{}, 1)
@@ -215,8 +263,21 @@ func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string,
 	go func() {
 		select {
 		case <-stopChan:
-			_ = remoteListener.Close()
-			_ = sshClientConn.Close()
+			closeFn()
+		}
+	}()
+
+	var ticker = time.NewTicker(time.Second)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				_, err := session.SendRequest(config.User, false, nil)
+				if err != nil {
+					closeFn()
+					return
+				}
+			}
 		}
 	}()
 
@@ -244,28 +305,12 @@ func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string,
 		}
 
 	case "http", "https":
-		// http proxy
-		var list []string
-		var target = tools.GetArgs([]string{proxyMode}, args)
-		if target != "" {
-			list = append(list, target)
-			var to = tools.GetArgs([]string{target}, args)
-			if to != "" {
-				list = append(list, to)
-			}
-		}
-
+		// https proxy
 		l, err := net.Listen("tcp", localAddr)
 		if err != nil {
 			return nil, err
 		}
-		if proxyMode == "http" {
-			go Http(l, "http", list)
-		}
-		if proxyMode == "https" {
-			go Http(l, "https", list)
-		}
-
+		go Http(l)
 	}
 
 	// -----------
@@ -279,33 +324,25 @@ func RemoteForward(username, password, serverAddr, remoteAddr, localAddr string,
 				break
 			}
 
-			console.Info("remoteConn:", remoteConn.RemoteAddr().String())
-
 			go func() {
 
 				// Setup localListener (type net.Listener)
 				localConn, err := net.Dial("tcp", localAddr)
 				if err != nil {
-					console.Error(err)
+					console.Error("Dial localAddr:", err)
 					return
 				}
 
 				// Copy localConn.Reader to sshConn.Writer
 				go func() {
-					_, err = io.Copy(localConn, remoteConn)
-					if err != nil {
-						console.Error(err)
-					}
+					_, _ = io.Copy(localConn, remoteConn)
 					_ = localConn.Close()
 					_ = remoteConn.Close()
 				}()
 
 				// Copy sshConn.Reader to localConn.Writer
 				go func() {
-					_, err = io.Copy(remoteConn, localConn)
-					if err != nil {
-						console.Error(err)
-					}
+					_, _ = io.Copy(remoteConn, localConn)
 					_ = localConn.Close()
 					_ = remoteConn.Close()
 				}()

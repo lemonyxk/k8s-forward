@@ -18,6 +18,7 @@ import (
 )
 
 func Tcp(l net.Listener, remote string) {
+	console.Info("Tcp server listen on:", l.Addr().String())
 
 	for {
 		localConn, err := l.Accept()
@@ -31,13 +32,15 @@ func Tcp(l net.Listener, remote string) {
 			continue
 		}
 
-		handle(localConn, remoteConn)
+		tcpHandle(localConn, remoteConn)
 	}
 
 	_ = l.Close()
+
+	console.Info("Tcp server closed")
 }
 
-func handle(localConn net.Conn, remoteConn net.Conn) {
+func tcpHandle(localConn net.Conn, remoteConn net.Conn) {
 	go func() {
 		_, _ = io.Copy(localConn, remoteConn)
 		_ = localConn.Close()

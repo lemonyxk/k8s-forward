@@ -29,11 +29,15 @@ func Socks5(l net.Listener) {
 			break
 		}
 
-		go process(client)
+		go socks5Handler(client)
 	}
+
+	_ = l.Close()
+
+	console.Info("Socks5 server stopped")
 }
 
-func process(client net.Conn) {
+func socks5Handler(client net.Conn) {
 	if err := Socks5Auth(client); err != nil {
 		console.Error(err)
 		_ = client.Close()
@@ -145,10 +149,7 @@ func Socks5Connect(client net.Conn) (net.Conn, error) {
 
 func Socks5Forward(client, target net.Conn) {
 	forward := func(src, dst net.Conn) {
-		_, err := io.Copy(src, dst)
-		if err != nil {
-			console.Error(err)
-		}
+		_, _ = io.Copy(src, dst)
 		_ = src.Close()
 		_ = dst.Close()
 	}
