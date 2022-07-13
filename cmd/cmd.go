@@ -13,9 +13,9 @@ package cmd
 import (
 	"strings"
 
+	"github.com/lemonyxk/k8s-forward/ipc"
+	"github.com/lemonyxk/k8s-forward/k8s"
 	"github.com/lemoyxk/console"
-	"github.com/lemoyxk/k8s-forward/ipc"
-	"github.com/lemoyxk/k8s-forward/k8s"
 )
 
 func Cmd(args []string) {

@@ -17,10 +17,10 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/lemonyxk/k8s-forward/app"
+	"github.com/lemonyxk/k8s-forward/config"
+	"github.com/lemonyxk/k8s-forward/tools"
 	"github.com/lemoyxk/console"
-	"github.com/lemoyxk/k8s-forward/app"
-	"github.com/lemoyxk/k8s-forward/config"
-	"github.com/lemoyxk/k8s-forward/tools"
 	"github.com/lemoyxk/utils"
 )
 

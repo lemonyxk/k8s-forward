@@ -1,8 +1,8 @@
 package dns
 
 import (
-	"github.com/lemoyxk/k8s-forward/app"
-	"github.com/lemoyxk/k8s-forward/config"
+	"github.com/lemonyxk/k8s-forward/app"
+	"github.com/lemonyxk/k8s-forward/config"
 )
 
 func GetDNSDomain() map[string]*config.Service {

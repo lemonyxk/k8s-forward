@@ -16,8 +16,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemoyxk/console"
-	"github.com/lemoyxk/k8s-forward/app"
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"

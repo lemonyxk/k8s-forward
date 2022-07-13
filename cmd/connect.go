@@ -13,12 +13,12 @@ package cmd
 import (
 	"os"
 
+	"github.com/lemonyxk/k8s-forward/app"
+	"github.com/lemonyxk/k8s-forward/dns"
+	"github.com/lemonyxk/k8s-forward/ipc"
+	"github.com/lemonyxk/k8s-forward/k8s"
+	"github.com/lemonyxk/k8s-forward/net"
 	"github.com/lemoyxk/console"
-	"github.com/lemoyxk/k8s-forward/app"
-	"github.com/lemoyxk/k8s-forward/dns"
-	"github.com/lemoyxk/k8s-forward/ipc"
-	"github.com/lemoyxk/k8s-forward/k8s"
-	"github.com/lemoyxk/k8s-forward/net"
 	"github.com/lemoyxk/promise"
 	"github.com/lemoyxk/utils"
 )

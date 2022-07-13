@@ -14,9 +14,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/lemonyxk/k8s-forward/ssh"
+	"github.com/lemonyxk/k8s-forward/tools"
 	"github.com/lemoyxk/console"
-	"github.com/lemoyxk/k8s-forward/ssh"
-	"github.com/lemoyxk/k8s-forward/tools"
 	"golang.org/x/term"
 )
 

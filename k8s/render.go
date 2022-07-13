@@ -13,8 +13,8 @@ package k8s
 import (
 	"strings"
 
+	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemoyxk/console"
-	"github.com/lemoyxk/k8s-forward/app"
 	"github.com/lemoyxk/utils"
 )
 

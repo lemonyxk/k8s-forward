@@ -11,8 +11,8 @@
 package k8s
 
 import (
-	"github.com/lemoyxk/k8s-forward/app"
-	"github.com/lemoyxk/k8s-forward/tools"
+	"github.com/lemonyxk/k8s-forward/app"
+	"github.com/lemonyxk/k8s-forward/tools"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

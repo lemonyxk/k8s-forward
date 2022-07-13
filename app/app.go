@@ -13,8 +13,8 @@ package app
 import (
 	"embed"
 
-	"github.com/lemoyxk/k8s-forward/config"
-	"github.com/lemoyxk/k8s-forward/manager"
+	"github.com/lemonyxk/k8s-forward/config"
+	"github.com/lemonyxk/k8s-forward/manager"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )

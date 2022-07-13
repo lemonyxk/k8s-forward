@@ -16,8 +16,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/lemonyxk/k8s-forward/tools"
 	"github.com/lemoyxk/console"
-	"github.com/lemoyxk/k8s-forward/tools"
 )
 
 var CallBack func([]string) string
