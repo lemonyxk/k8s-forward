@@ -88,7 +88,14 @@ func httpHandler(client net.Conn) {
 		return
 	}
 	var method, host, address string
-	_, _ = fmt.Sscanf(string(b[:bytes.IndexByte(b[:], '\n')]), "%s%s", &method, &host)
+	var index = bytes.IndexByte(b[:], '\n')
+	if index == -1 {
+		_ = client.Close()
+		console.Error(err)
+		return
+	}
+
+	_, _ = fmt.Sscanf(string(b[:index]), "%s%s", &method, &host)
 	hostPortURL, err := url.Parse(host)
 	if err != nil {
 		_ = client.Close()
