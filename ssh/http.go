@@ -91,7 +91,6 @@ func httpHandler(client net.Conn) {
 	var index = bytes.IndexByte(b[:], '\n')
 	if index == -1 {
 		_ = client.Close()
-		console.Error(err)
 		return
 	}
 

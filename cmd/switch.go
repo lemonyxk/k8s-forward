@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
@@ -191,7 +192,16 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 	// ssh
 	var remoteAddr = fmt.Sprintf("%s:%d", pod.Status.PodIP, service.Port[0].Port)
 	var localAddr = fmt.Sprintf("%s:%d", "127.0.0.1", utils.Ternary.Int(port == 0, int(service.Port[0].Port), port))
-	st, err = ssh.RemoteForward("root", "root", "127.0.0.1:2222", remoteAddr, localAddr)
+	st, _, err = ssh.RemoteForward(ssh.Config{
+		UserName:          "root",
+		Password:          "root",
+		ServerAddress:     "127.0.0.1:2222",
+		RemoteAddress:     remoteAddr,
+		LocalAddress:      localAddr,
+		Timeout:           time.Second * 3,
+		Reconnect:         0,
+		HeartbeatInterval: time.Second,
+	})
 	if err != nil {
 		return err.Error()
 	}

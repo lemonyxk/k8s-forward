@@ -13,6 +13,7 @@ package cmd
 import (
 	"os"
 	"strings"
+	"time"
 
 	"github.com/lemonyxk/k8s-forward/ssh"
 	"github.com/lemonyxk/k8s-forward/tools"
@@ -51,8 +52,13 @@ func SSH(args []string) {
 		password = string(bts)
 	}
 
-	var r = tools.HasArgs("-R", args)
-	var l = tools.HasArgs("-L", args)
+	var mode string
+	if tools.HasArgs("-R", args) {
+		mode = "-R"
+	}
+	if tools.HasArgs("-L", args) {
+		mode = "-L"
+	}
 
 	var arr = strings.Split(server, "@")
 	if len(arr) != 2 {
@@ -65,29 +71,47 @@ func SSH(args []string) {
 
 	console.Info("user:", user, "server:", serverAddr, "remote:", remote, "local", local)
 
-	if r {
-		st, err := ssh.RemoteForward(user, password, serverAddr, remote, local, args...)
+	var reconnectInterval time.Duration = 0
+	var reconnect = tools.HasArgs("--reconnect", args)
+	if reconnect {
+		reconnectInterval = time.Second
+	}
+
+	var config = ssh.Config{
+		UserName:          user,
+		Password:          password,
+		ServerAddress:     serverAddr,
+		RemoteAddress:     remote,
+		LocalAddress:      local,
+		Timeout:           time.Second * 3,
+		Reconnect:         reconnectInterval,
+		HeartbeatInterval: time.Second * 1,
+	}
+
+	switch mode {
+	case "-R":
+		_, done, err := ssh.RemoteForward(config, args...)
 		if err != nil {
 			console.Error(err)
 			return
 		}
+
 		select {
-		case <-st:
+		case <-done:
 			console.Info("remote forward done")
 		}
-	}
-
-	if l {
-		st, err := ssh.LocalForward(user, password, serverAddr, remote, local, args...)
+	case "-L":
+		_, done, err := ssh.LocalForward(config, args...)
 		if err != nil {
 			console.Error(err)
 			return
 		}
+
 		select {
-		case <-st:
+		case <-done:
 			console.Info("local forward done")
 		}
+	default:
+		console.Error("mode is required: -R or -L")
 	}
-
-	console.Error("mode is required: -R or -L")
 }
