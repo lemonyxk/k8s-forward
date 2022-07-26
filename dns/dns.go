@@ -129,11 +129,11 @@ func (t *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 }
 
 func AddNameServer() {
-	GetDefaultNDS()
-
 	if runtime.GOOS == "linux" {
+		GetDefaultNDS()
 		addNameServerLinux()
 	} else if runtime.GOOS == "darwin" {
+		GetDefaultNDS()
 		addNameServerDarwin()
 	} else if runtime.GOOS == "windows" {
 		tools.Exit("not support windows")
@@ -355,7 +355,7 @@ func deleteNameServerLinux() {
 	}
 }
 
-// StartDNS startDNS starts a DNS server on the given port.
+// StartDNS starts a DNS server on the given port.
 func StartDNS(fn func()) {
 	dnsCache.init()
 	srv := &dns.Server{Addr: "127.0.0.1:" + strconv.Itoa(53), Net: "udp"}

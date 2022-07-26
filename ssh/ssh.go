@@ -83,6 +83,7 @@ func sshListen(sshClientConn *ssh.Client, remoteAddr string) (net.Listener, erro
 			}
 			// send a request to close the connection
 			_, _ = conn.Write(nil)
+			_ = conn.Close()
 			time.Sleep(time.Second)
 			return sshListen(sshClientConn, remoteAddr)
 		}
@@ -103,9 +104,10 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 
 		var stop = make(chan struct{}, 1)
 		var isStop = false
+		var done = make(chan struct{}, 1)
 
 		// Setup SSH config (type *ssh.ClientConfig)
-		config := &ssh.ClientConfig{
+		var config = &ssh.ClientConfig{
 			User:    cfg.UserName,
 			Auth:    []ssh.AuthMethod{ssh.Password(cfg.Password)},
 			Timeout: cfg.Timeout,
@@ -177,6 +179,8 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 					return
 				case <-stopChan:
 					stop <- struct{}{}
+				case <-done:
+					return
 				}
 			}
 		}()
@@ -201,6 +205,8 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 					if cfg.Reconnect == 0 {
 						doneChan <- struct{}{}
 						return
+					} else {
+						done <- struct{}{}
 					}
 
 					console.Info("Reconnecting...")
@@ -304,9 +310,10 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 
 		var stop = make(chan struct{}, 1)
 		var isStop = false
+		var done = make(chan struct{}, 1)
 
 		// Setup SSH config (type *ssh.ClientConfig)
-		config := ssh.ClientConfig{
+		var config = ssh.ClientConfig{
 			User:    cfg.UserName,
 			Auth:    []ssh.AuthMethod{ssh.Password(cfg.Password)},
 			Timeout: cfg.Timeout,
@@ -378,6 +385,8 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 					return
 				case <-stopChan:
 					stop <- struct{}{}
+				case <-done:
+					return
 				}
 			}
 		}()
@@ -402,6 +411,8 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 					if cfg.Reconnect == 0 {
 						doneChan <- struct{}{}
 						return
+					} else {
+						done <- struct{}{}
 					}
 
 					console.Info("Reconnecting...")

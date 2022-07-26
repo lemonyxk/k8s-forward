@@ -26,7 +26,7 @@ import (
 func main() {
 
 	// console.SetFlags(console.LEVEL | console.TIME)
-	console.SetFlags(console.NONE)
+	console.SetFlags(console.TIME)
 	console.SetInfoColor(console.FgGreen)
 
 	var home = homedir.HomeDir()
