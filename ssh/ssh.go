@@ -34,13 +34,12 @@ type Config struct {
 	HeartbeatInterval time.Duration
 }
 
-func Server(user, password, host string, port int) (*ssh.Session, error) {
+func Server(user, password, host string, port int) (*ssh.Client, error) {
 	var (
 		auth         []ssh.AuthMethod
 		addr         string
 		clientConfig *ssh.ClientConfig
 		client       *ssh.Client
-		session      *ssh.Session
 		err          error
 	)
 
@@ -64,12 +63,7 @@ func Server(user, password, host string, port int) (*ssh.Session, error) {
 		return nil, err
 	}
 
-	// create session
-	if session, err = client.NewSession(); err != nil {
-		return nil, err
-	}
-
-	return session, nil
+	return client, nil
 }
 
 func sshListen(sshClientConn *ssh.Client, remoteAddr string) (net.Listener, error) {
