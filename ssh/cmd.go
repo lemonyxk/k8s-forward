@@ -17,7 +17,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lemoyxk/console"
+	"github.com/olekukonko/ts"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/term"
 )
 
 var client *ssh.Client
@@ -74,6 +77,35 @@ func (c *Cmd) initSession(session *ssh.Session) *ssh.Session {
 	session.Stderr = c.Stderr
 	session.Stdin = c.Stdin
 	session.Stdout = c.Stdout
+
+	fd := int(os.Stdin.Fd())
+	oldState, err := term.MakeRaw(fd)
+	if err != nil {
+		console.Error(err)
+		return nil
+	}
+	defer func() { _ = term.Restore(fd, oldState) }()
+
+	size, err := ts.GetSize()
+	if err != nil {
+		console.Error(err)
+		return nil
+	}
+
+	termWidth, termHeight := size.Col(), size.Row()
+
+	// Set up terminal modes
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          1,     // enable echoing
+		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+	}
+
+	// Request pseudo terminal
+	if err := session.RequestPty("xterm-256color", termHeight, termWidth, modes); err != nil {
+		console.Error(err)
+		return nil
+	}
 
 	c.session = session
 
