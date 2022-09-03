@@ -113,39 +113,47 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 		// Setup sshClientConn (type *ssh.ClientConn)
 
 		var sshClientConn *ssh.Client
+		var session *ssh.Session
+		var localListener net.Listener
 		var err error
 		var l net.Listener
 
+		var reconnectTimes = -1
+
 		for {
+			time.Sleep(cfg.Reconnect)
+			reconnectTimes++
+
 			sshClientConn, err = ssh.Dial("tcp", cfg.ServerAddress, config)
-			if err == nil {
-				break
+			if err != nil {
+				console.Error(err)
+				continue
 			}
 
-			if cfg.Reconnect == 0 {
+			// create session
+			session, err = sshClientConn.NewSession()
+			if err != nil {
+				console.Error(err)
+				continue
+			}
+
+			session.Stdout = os.Stdout
+			session.Stderr = os.Stderr
+			session.Stdin = os.Stdin
+
+			// Setup localListener (type net.Listener)
+			localListener, err = net.Listen("tcp", cfg.LocalAddress)
+			if err != nil {
+				console.Error(err)
+				continue
+			}
+
+			if cfg.Reconnect == 0 && reconnectTimes > 0 {
 				doneChan <- struct{}{}
 				return err
 			}
 
-			console.Error(err)
-			console.Info("Reconnecting...")
-			time.Sleep(cfg.Reconnect)
-		}
-
-		// create session
-		session, err := sshClientConn.NewSession()
-		if err != nil {
-			return err
-		}
-
-		session.Stdout = os.Stdout
-		session.Stderr = os.Stderr
-		session.Stdin = os.Stdin
-
-		// Setup localListener (type net.Listener)
-		localListener, err := net.Listen("tcp", cfg.LocalAddress)
-		if err != nil {
-			return err
+			break
 		}
 
 		console.Info("LocalForward", cfg.LocalAddress, "to", cfg.RemoteAddress)
@@ -204,7 +212,7 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 					}
 
 					console.Info("Reconnecting...")
-					time.Sleep(cfg.Reconnect)
+
 					var err = fn()
 					if err != nil {
 						console.Error(err)
@@ -319,38 +327,46 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 		// Setup sshClientConn (type *ssh.ClientConn)
 
 		var sshClientConn *ssh.Client
+		var session *ssh.Session
+		var remoteListener net.Listener
 		var err error
 		var l net.Listener
 
+		var reconnectTimes = -1
+
 		for {
+			time.Sleep(cfg.Reconnect)
+			reconnectTimes++
+
 			sshClientConn, err = ssh.Dial("tcp", cfg.ServerAddress, &config)
-			if err == nil {
-				break
+			if err != nil {
+				console.Error(err)
+				continue
 			}
 
-			if cfg.Reconnect == 0 {
+			// create session
+			session, err = sshClientConn.NewSession()
+			if err != nil {
+				console.Error(err)
+				continue
+			}
+
+			session.Stdout = os.Stdout
+			session.Stderr = os.Stderr
+			session.Stdin = os.Stdin
+
+			remoteListener, err = sshListen(sshClientConn, cfg.RemoteAddress)
+			if err != nil {
+				console.Error(err)
+				continue
+			}
+
+			if cfg.Reconnect == 0 && reconnectTimes > 0 {
 				doneChan <- struct{}{}
 				return err
 			}
 
-			console.Error(err)
-			console.Info("Reconnecting...")
-			time.Sleep(cfg.Reconnect)
-		}
-
-		// create session
-		session, err := sshClientConn.NewSession()
-		if err != nil {
-			return err
-		}
-
-		session.Stdout = os.Stdout
-		session.Stderr = os.Stderr
-		session.Stdin = os.Stdin
-
-		remoteListener, err := sshListen(sshClientConn, cfg.RemoteAddress)
-		if err != nil {
-			return err
+			break
 		}
 
 		console.Info("RemoteForward", cfg.RemoteAddress, "to", cfg.LocalAddress)
@@ -410,7 +426,7 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 					}
 
 					console.Info("Reconnecting...")
-					time.Sleep(cfg.Reconnect)
+
 					var err = fn()
 					if err != nil {
 						console.Error(err)
