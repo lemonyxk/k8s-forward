@@ -61,7 +61,7 @@ func Run() error {
 	commands = append(commands, os.Args[1:]...)
 	// commands = append(commands, "--debug")
 
-	var cmd = exec.Command("k8s-forward", commands...)
+	var cmd = exec.Command("k8s-forward-cli", commands...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
