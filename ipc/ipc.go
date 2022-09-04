@@ -16,7 +16,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/lemonyxk/k8s-forward/tools"
 	"github.com/lemoyxk/console"
 )
 
@@ -39,7 +38,7 @@ func Open() {
 		http.HandleFunc("/", handler)
 		err := http.ListenAndServe("0.0.0.0:29292", nil)
 		if err != nil {
-			tools.Exit(err)
+			console.Exit(err)
 		}
 	}()
 }
@@ -50,13 +49,13 @@ func Write(str string) {
 
 	var res, err = http.Get("http://127.0.0.1:29292/" + str)
 	if err != nil {
-		tools.Exit("please run `k8s-forward connect` first")
+		console.Exit("please run `k8s-forward connect` first")
 	}
 	defer func() { _ = res.Body.Close() }()
 
 	bts, err := io.ReadAll(res.Body)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	console.Info(string(bts))

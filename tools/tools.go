@@ -31,7 +31,7 @@ func GetBin() string {
 		var err error
 		bin, err = os.Executable()
 		if err != nil {
-			Exit(err)
+			console.Exit(err)
 		}
 	}
 	return bin
@@ -42,11 +42,6 @@ func ReplaceString(s string, oList []string, nList []string) string {
 		s = strings.ReplaceAll(s, oList[i], nList[i])
 	}
 	return s
-}
-
-func Exit(args ...interface{}) {
-	console.Error(args...)
-	os.Exit(0)
 }
 
 func GetArgs(flag []string, args []string) string {

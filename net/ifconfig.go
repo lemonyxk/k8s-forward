@@ -19,7 +19,6 @@ import (
 
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
-	"github.com/lemonyxk/k8s-forward/tools"
 	"github.com/lemoyxk/console"
 	"github.com/lemoyxk/utils"
 )
@@ -33,7 +32,7 @@ func CreateNetWorkByIp(pod *config.Pod) {
 	} else if runtime.GOOS == "darwin" {
 		createDarwin([]string{pod.IP})
 	} else {
-		tools.Exit("not support windows")
+		console.Exit("not support windows")
 	}
 }
 
@@ -79,7 +78,7 @@ func CreateNetWork(record *config.Record) {
 	} else if runtime.GOOS == "darwin" {
 		createDarwin(ip)
 	} else {
-		tools.Exit("not support windows")
+		console.Exit("not support windows")
 	}
 }
 
@@ -92,7 +91,7 @@ func DeleteNetWorkByIp(pod *config.Pod) {
 	} else if runtime.GOOS == "darwin" {
 		deleteDarwin([]string{pod.IP})
 	} else {
-		tools.Exit("not support windows")
+		console.Exit("not support windows")
 	}
 }
 
@@ -120,7 +119,7 @@ func DeleteNetWork(record *config.Record) {
 	} else if runtime.GOOS == "darwin" {
 		deleteDarwin(ip)
 	} else {
-		tools.Exit("not support windows")
+		console.Exit("not support windows")
 	}
 }
 

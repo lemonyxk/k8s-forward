@@ -20,7 +20,7 @@ import (
 	"github.com/lemoyxk/console"
 )
 
-func Socks5(l net.Listener) {
+func Socks5(l net.Listener) error {
 	console.Info("Socks5 server listen on:", l.Addr().String())
 
 	for {
@@ -34,7 +34,7 @@ func Socks5(l net.Listener) {
 
 	_ = l.Close()
 
-	console.Info("Socks5 server stopped")
+	return errors.New("socks5 server stopped")
 }
 
 func socks5Handler(client net.Conn) {

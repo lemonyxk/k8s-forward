@@ -18,7 +18,6 @@ import (
 
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
-	"github.com/lemonyxk/k8s-forward/tools"
 	"github.com/lemoyxk/console"
 	"github.com/lemoyxk/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +29,7 @@ func GetRecord() *config.Record {
 	// get services
 	svc, err := client.CoreV1().Services("default").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	var services []*config.Service
@@ -58,7 +57,7 @@ func GetRecord() *config.Record {
 	// get pods
 	ps, err := client.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	var pods []*config.Pod

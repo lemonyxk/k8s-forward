@@ -99,7 +99,7 @@ func (t *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 				m.SetQuestion(domain, dns.TypeA)
 				r, err := dns.Exchange(&m, defaultDNS+":53")
 				if err != nil {
-					tools.Exit(err)
+					console.Exit(err)
 				}
 
 				var rr []dns.RR
@@ -136,14 +136,14 @@ func AddNameServer() {
 		GetDefaultNDS()
 		addNameServerDarwin()
 	} else if runtime.GOOS == "windows" {
-		tools.Exit("not support windows")
+		console.Exit("not support windows")
 	}
 }
 
 func GetDefaultNDS() {
 	f, err := os.OpenFile("/etc/resolv.conf", os.O_RDWR, 0777)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	defer func() { _ = f.Close() }()
@@ -158,7 +158,7 @@ func GetDefaultNDS() {
 			if err == io.EOF {
 				break
 			}
-			tools.Exit(err)
+			console.Exit(err)
 		}
 
 		lines = append(lines, line)
@@ -200,7 +200,7 @@ func addNameServerDarwin() {
 func addNameServerLinux() {
 	f, err := os.OpenFile("/etc/resolv.conf", os.O_RDWR, 0777)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	defer func() { _ = f.Close() }()
@@ -215,7 +215,7 @@ func addNameServerLinux() {
 			if err == io.EOF {
 				break
 			}
-			tools.Exit(err)
+			console.Exit(err)
 		}
 
 		lines = append(lines, line)
@@ -250,11 +250,11 @@ func addNameServerLinux() {
 
 	err = f.Truncate(0)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 	_, err = f.Seek(0, 0)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	var str = ""
@@ -277,7 +277,7 @@ func DeleteNameServer() {
 	} else if runtime.GOOS == "darwin" {
 		deleteNameServerDarwin()
 	} else if runtime.GOOS == "windows" {
-		tools.Exit("not support windows")
+		console.Exit("not support windows")
 	}
 }
 
@@ -295,7 +295,7 @@ func deleteNameServerDarwin() {
 func deleteNameServerLinux() {
 	f, err := os.OpenFile("/etc/resolv.conf", os.O_RDWR, 0777)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	defer func() { _ = f.Close() }()
@@ -310,7 +310,7 @@ func deleteNameServerLinux() {
 			if err == io.EOF {
 				break
 			}
-			tools.Exit(err)
+			console.Exit(err)
 		}
 
 		lines = append(lines, line)
@@ -331,11 +331,11 @@ func deleteNameServerLinux() {
 
 	err = f.Truncate(0)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 	_, err = f.Seek(0, 0)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	var str = ""

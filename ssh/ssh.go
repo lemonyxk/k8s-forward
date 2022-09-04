@@ -24,13 +24,13 @@ import (
 )
 
 type Config struct {
-	UserName          string
-	Password          string
-	ServerAddress     string
-	RemoteAddress     string
-	LocalAddress      string
-	Timeout           time.Duration
-	Reconnect         time.Duration
+	UserName      string
+	Password      string
+	ServerAddress string
+	RemoteAddress string
+	LocalAddress  string
+	Timeout       time.Duration
+	// Reconnect         time.Duration
 	HeartbeatInterval time.Duration
 }
 
@@ -92,211 +92,200 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 	var stopChan = make(chan struct{}, 1)
 	var doneChan = make(chan struct{}, 1)
 
-	var fn func() error
+	var stop = make(chan struct{}, 1)
+	var isStop = false
+	var isClose = false
 
-	fn = func() error {
-
-		var stop = make(chan struct{}, 1)
-		var isStop = false
-		var done = make(chan struct{}, 1)
-
-		// Setup SSH config (type *ssh.ClientConfig)
-		var config = &ssh.ClientConfig{
-			User:    cfg.UserName,
-			Auth:    []ssh.AuthMethod{ssh.Password(cfg.Password)},
-			Timeout: cfg.Timeout,
-			HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-				return nil
-			},
-		}
-
-		// Setup sshClientConn (type *ssh.ClientConn)
-
-		var sshClientConn *ssh.Client
-		var session *ssh.Session
-		var localListener net.Listener
-		var err error
-		var l net.Listener
-
-		var reconnectTimes = -1
-
-		for {
-			time.Sleep(cfg.Reconnect)
-			reconnectTimes++
-
-			sshClientConn, err = ssh.Dial("tcp", cfg.ServerAddress, config)
-			if err != nil {
-				console.Error(err)
-				continue
-			}
-
-			// create session
-			session, err = sshClientConn.NewSession()
-			if err != nil {
-				console.Error(err)
-				continue
-			}
-
-			session.Stdout = os.Stdout
-			session.Stderr = os.Stderr
-			session.Stdin = os.Stdin
-
-			// Setup localListener (type net.Listener)
-			localListener, err = net.Listen("tcp", cfg.LocalAddress)
-			if err != nil {
-				console.Error(err)
-				continue
-			}
-
-			if cfg.Reconnect == 0 && reconnectTimes > 0 {
-				doneChan <- struct{}{}
-				return err
-			}
-
-			break
-		}
-
-		console.Info("LocalForward", cfg.LocalAddress, "to", cfg.RemoteAddress)
-
-		var closeFn = func() {
-			if isStop {
-				return
-			}
-			isStop = true
-			_ = localListener.Close()
-			_ = sshClientConn.Close()
-			_ = session.Close()
-			if l != nil {
-				_ = l.Close()
-			}
-			console.Info("Close LocalForward")
-		}
-
-		go func() {
-			for {
-				select {
-				case <-stop:
-					cfg.Reconnect = 0
-					closeFn()
-					return
-				case <-stopChan:
-					stop <- struct{}{}
-				case <-done:
-					return
-				}
-			}
-		}()
-
-		go func() {
-			var t = time.NewTimer(cfg.Timeout)
-
-			for {
-				time.Sleep(cfg.HeartbeatInterval)
-
-				var ch = make(chan struct{})
-				go func() {
-					_, err = session.SendRequest(config.User, true, nil)
-					if err == nil {
-						ch <- struct{}{}
-					}
-				}()
-				select {
-				case <-t.C:
-					closeFn()
-
-					if cfg.Reconnect == 0 {
-						doneChan <- struct{}{}
-						return
-					} else {
-						done <- struct{}{}
-					}
-
-					console.Info("Reconnecting...")
-
-					var err = fn()
-					if err != nil {
-						console.Error(err)
-					}
-
-					return
-				case <-ch:
-					t.Reset(cfg.Timeout)
-				}
-			}
-		}()
-
-		// --------
-
-		var proxyMode = tools.GetArgs([]string{"proxy", "--proxy"}, args)
-		switch proxyMode {
-		case "socks5":
-			// socks5 proxy
-			l, err = sshListen(sshClientConn, cfg.RemoteAddress)
-			if err != nil {
-				return err
-			}
-			go Socks5(l)
-
-		case "tcp":
-			// tcp proxy
-			var target = tools.GetArgs([]string{proxyMode}, args)
-			if target != "" {
-				l, err = sshListen(sshClientConn, cfg.RemoteAddress)
-				if err != nil {
-					return err
-				}
-				go Tcp(l, target)
-			}
-
-		case "http", "https":
-			// http proxy
-			l, err = sshListen(sshClientConn, cfg.RemoteAddress)
-			if err != nil {
-				return err
-			}
-			go Http(l)
-		}
-
-		// --------
-
-		go func() {
-			for {
-				// Setup localConn (type net.Conn)
-				localConn, err := localListener.Accept()
-				if err != nil {
-					break
-				}
-
-				go func() {
-					// Setup sshConn (type net.Conn)
-					sshConn, err := sshClientConn.Dial("tcp", cfg.RemoteAddress)
-					if err != nil {
-						console.Error("Dial RemoteAddr:", err)
-						return
-					}
-
-					// Copy localConn.Reader to sshConn.Writer
-					go func() {
-						_, _ = io.Copy(sshConn, localConn)
-						_ = sshConn.Close()
-						_ = localConn.Close()
-					}()
-
-					// Copy sshConn.Reader to localConn.Writer
-					go func() {
-						_, _ = io.Copy(localConn, sshConn)
-						_ = sshConn.Close()
-						_ = localConn.Close()
-					}()
-
-				}()
-			}
-		}()
-
-		return nil
+	// Setup SSH config (type *ssh.ClientConfig)
+	var config = &ssh.ClientConfig{
+		User:    cfg.UserName,
+		Auth:    []ssh.AuthMethod{ssh.Password(cfg.Password)},
+		Timeout: cfg.Timeout,
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
 	}
 
-	var err = fn()
+	// Setup sshClientConn (type *ssh.ClientConn)
+
+	var sshClientConn *ssh.Client
+	var session *ssh.Session
+	var localListener net.Listener
+	var err error
+	var l net.Listener
+
+	sshClientConn, err = ssh.Dial("tcp", cfg.ServerAddress, config)
+	if err != nil {
+		console.Exit(err)
+	}
+
+	// create session
+	session, err = sshClientConn.NewSession()
+	if err != nil {
+		console.Exit(err)
+	}
+
+	session.Stdout = os.Stdout
+	session.Stderr = os.Stderr
+	session.Stdin = os.Stdin
+
+	// Setup localListener (type net.Listener)
+	localListener, err = net.Listen("tcp", cfg.LocalAddress)
+	if err != nil {
+		console.Exit(err)
+	}
+
+	console.Info("LocalForward", cfg.LocalAddress, "to", cfg.RemoteAddress)
+
+	var closeFn = func() {
+		if isStop {
+			return
+		}
+
+		isStop = true
+		_ = localListener.Close()
+		_ = sshClientConn.Close()
+		_ = session.Close()
+		if l != nil {
+			_ = l.Close()
+		}
+
+		console.Info("Close LocalForward")
+	}
+
+	go func() {
+		for {
+			select {
+			case <-stop:
+				closeFn()
+				doneChan <- struct{}{}
+				return
+			case <-stopChan:
+				isClose = true
+				stop <- struct{}{}
+			}
+		}
+	}()
+
+	go func() {
+		var t = time.NewTimer(cfg.Timeout)
+
+		for {
+			time.Sleep(cfg.HeartbeatInterval)
+
+			var ch = make(chan struct{})
+			go func() {
+				_, err = session.SendRequest(config.User, true, nil)
+				if err == nil {
+					ch <- struct{}{}
+				}
+			}()
+			select {
+			case <-t.C:
+				closeFn()
+				console.Exit(err)
+			case <-ch:
+				t.Reset(cfg.Timeout)
+			}
+		}
+	}()
+
+	// --------
+
+	var proxyMode = tools.GetArgs([]string{"proxy", "--proxy"}, args)
+	switch proxyMode {
+	case "socks5":
+		// socks5 proxy
+		l, err = sshListen(sshClientConn, cfg.RemoteAddress)
+		if err != nil {
+			console.Exit(err)
+		}
+		go func() {
+			var err = Socks5(l)
+			if !isClose {
+				console.Exit(err)
+			} else {
+				console.Error(err)
+			}
+		}()
+
+	case "tcp":
+		// tcp proxy
+		var target = tools.GetArgs([]string{proxyMode}, args)
+		if target == "" {
+			console.Exit("target argument is required")
+		}
+
+		l, err = sshListen(sshClientConn, cfg.RemoteAddress)
+		if err != nil {
+			console.Exit(err)
+		}
+		go func() {
+			var err = Tcp(l, target)
+			if !isClose {
+				console.Exit(err)
+			} else {
+				console.Error(err)
+			}
+		}()
+
+	case "http", "https":
+		// http proxy
+		l, err = sshListen(sshClientConn, cfg.RemoteAddress)
+		if err != nil {
+			console.Exit(err)
+		}
+		go func() {
+			var err = Http(l)
+			if !isClose {
+				console.Exit(err)
+			} else {
+				console.Error(err)
+			}
+		}()
+	}
+
+	// --------
+
+	go func() {
+		for {
+			// Setup localConn (type net.Conn)
+			localConn, err := localListener.Accept()
+			if err != nil {
+				break
+			}
+
+			go func() {
+				// Setup sshConn (type net.Conn)
+				sshConn, err := sshClientConn.Dial("tcp", cfg.RemoteAddress)
+				if err != nil {
+					console.Error("Dial RemoteAddr:", cfg.RemoteAddress, err)
+					return
+				}
+
+				// Copy localConn.Reader to sshConn.Writer
+				go func() {
+					_, _ = io.Copy(sshConn, localConn)
+					_ = sshConn.Close()
+					_ = localConn.Close()
+				}()
+
+				// Copy sshConn.Reader to localConn.Writer
+				go func() {
+					_, _ = io.Copy(localConn, sshConn)
+					_ = sshConn.Close()
+					_ = localConn.Close()
+				}()
+
+			}()
+		}
+
+		if !isClose {
+			console.Exit("localListener closed")
+		} else {
+			console.Error("localListener closed")
+		}
+	}()
 
 	return stopChan, doneChan, err
 }
@@ -306,213 +295,200 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 	var stopChan = make(chan struct{}, 1)
 	var doneChan = make(chan struct{}, 1)
 
-	var fn func() error
+	var stop = make(chan struct{}, 1)
+	var isStop = false
+	var isClose = false
 
-	fn = func() error {
-
-		var stop = make(chan struct{}, 1)
-		var isStop = false
-		var done = make(chan struct{}, 1)
-
-		// Setup SSH config (type *ssh.ClientConfig)
-		var config = ssh.ClientConfig{
-			User:    cfg.UserName,
-			Auth:    []ssh.AuthMethod{ssh.Password(cfg.Password)},
-			Timeout: cfg.Timeout,
-			HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-				return nil
-			},
-		}
-
-		// Setup sshClientConn (type *ssh.ClientConn)
-
-		var sshClientConn *ssh.Client
-		var session *ssh.Session
-		var remoteListener net.Listener
-		var err error
-		var l net.Listener
-
-		var reconnectTimes = -1
-
-		for {
-			time.Sleep(cfg.Reconnect)
-			reconnectTimes++
-
-			sshClientConn, err = ssh.Dial("tcp", cfg.ServerAddress, &config)
-			if err != nil {
-				console.Error(err)
-				continue
-			}
-
-			// create session
-			session, err = sshClientConn.NewSession()
-			if err != nil {
-				console.Error(err)
-				continue
-			}
-
-			session.Stdout = os.Stdout
-			session.Stderr = os.Stderr
-			session.Stdin = os.Stdin
-
-			remoteListener, err = sshListen(sshClientConn, cfg.RemoteAddress)
-			if err != nil {
-				console.Error(err)
-				continue
-			}
-
-			if cfg.Reconnect == 0 && reconnectTimes > 0 {
-				doneChan <- struct{}{}
-				return err
-			}
-
-			break
-		}
-
-		console.Info("RemoteForward", cfg.RemoteAddress, "to", cfg.LocalAddress)
-
-		var closeFn = func() {
-			if isStop {
-				return
-			}
-			isStop = true
-			// will block when net broken
-			go func() { _ = remoteListener.Close() }()
-			_ = sshClientConn.Close()
-			_ = session.Close()
-			if l != nil {
-				_ = l.Close()
-			}
-			console.Info("Close RemoteForward")
-		}
-
-		go func() {
-			for {
-				select {
-				case <-stop:
-					cfg.Reconnect = 0
-					closeFn()
-					return
-				case <-stopChan:
-					stop <- struct{}{}
-				case <-done:
-					return
-				}
-			}
-		}()
-
-		go func() {
-			var t = time.NewTimer(cfg.Timeout)
-
-			for {
-				time.Sleep(cfg.HeartbeatInterval)
-
-				var ch = make(chan struct{})
-				go func() {
-					_, err = session.SendRequest(config.User, true, nil)
-					if err == nil {
-						ch <- struct{}{}
-					}
-				}()
-				select {
-				case <-t.C:
-					closeFn()
-
-					if cfg.Reconnect == 0 {
-						doneChan <- struct{}{}
-						return
-					} else {
-						done <- struct{}{}
-					}
-
-					console.Info("Reconnecting...")
-
-					var err = fn()
-					if err != nil {
-						console.Error(err)
-					}
-
-					return
-				case <-ch:
-					t.Reset(cfg.Timeout)
-				}
-			}
-		}()
-
-		// -----------
-
-		var proxyMode = tools.GetArgs([]string{"proxy", "--proxy"}, args)
-		switch proxyMode {
-		case "socks5":
-			// socks5 proxy
-			l, err = net.Listen("tcp", cfg.LocalAddress)
-			if err != nil {
-				return err
-			}
-			go Socks5(l)
-
-		case "tcp":
-			// tcp proxy
-			var target = tools.GetArgs([]string{proxyMode}, args)
-			if target != "" {
-				l, err = net.Listen("tcp", cfg.LocalAddress)
-				if err != nil {
-					return err
-				}
-				go Tcp(l, target)
-			}
-
-		case "http", "https":
-			// https proxy
-			l, err = net.Listen("tcp", cfg.LocalAddress)
-			if err != nil {
-				return err
-			}
-			go Http(l)
-		}
-
-		// -----------
-
-		go func() {
-
-			for {
-				// Setup localConn (type net.Conn)
-				remoteConn, err := remoteListener.Accept()
-				if err != nil {
-					break
-				}
-
-				go func() {
-
-					// Setup localListener (type net.Listener)
-					localConn, err := net.Dial("tcp", cfg.LocalAddress)
-					if err != nil {
-						console.Error("Dial localAddr:", err)
-						return
-					}
-
-					// Copy localConn.Reader to sshConn.Writer
-					go func() {
-						_, _ = io.Copy(localConn, remoteConn)
-						_ = localConn.Close()
-						_ = remoteConn.Close()
-					}()
-
-					// Copy sshConn.Reader to localConn.Writer
-					go func() {
-						_, _ = io.Copy(remoteConn, localConn)
-						_ = localConn.Close()
-						_ = remoteConn.Close()
-					}()
-
-				}()
-			}
-		}()
-
-		return nil
+	// Setup SSH config (type *ssh.ClientConfig)
+	var config = ssh.ClientConfig{
+		User:    cfg.UserName,
+		Auth:    []ssh.AuthMethod{ssh.Password(cfg.Password)},
+		Timeout: cfg.Timeout,
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
 	}
 
-	var err = fn()
+	// Setup sshClientConn (type *ssh.ClientConn)
+
+	var sshClientConn *ssh.Client
+	var session *ssh.Session
+	var remoteListener net.Listener
+	var err error
+	var l net.Listener
+
+	sshClientConn, err = ssh.Dial("tcp", cfg.ServerAddress, &config)
+	if err != nil {
+		console.Exit(err)
+	}
+
+	// create session
+	session, err = sshClientConn.NewSession()
+	if err != nil {
+		console.Exit(err)
+	}
+
+	session.Stdout = os.Stdout
+	session.Stderr = os.Stderr
+	session.Stdin = os.Stdin
+
+	remoteListener, err = sshListen(sshClientConn, cfg.RemoteAddress)
+	if err != nil {
+		console.Exit(err)
+	}
+
+	console.Info("RemoteForward", cfg.RemoteAddress, "to", cfg.LocalAddress)
+
+	var closeFn = func() {
+		if isStop {
+			return
+		}
+
+		isStop = true
+		// will block when net broken
+		go func() { _ = remoteListener.Close() }()
+		_ = sshClientConn.Close()
+		_ = session.Close()
+		if l != nil {
+			_ = l.Close()
+		}
+
+		console.Info("Close RemoteForward")
+	}
+
+	go func() {
+		for {
+			select {
+			case <-stop:
+				closeFn()
+				doneChan <- struct{}{}
+				return
+			case <-stopChan:
+				isClose = true
+				stop <- struct{}{}
+			}
+		}
+	}()
+
+	go func() {
+		var t = time.NewTimer(cfg.Timeout)
+
+		for {
+			time.Sleep(cfg.HeartbeatInterval)
+
+			var ch = make(chan struct{})
+			go func() {
+				_, err = session.SendRequest(config.User, true, nil)
+				if err == nil {
+					ch <- struct{}{}
+				}
+			}()
+			select {
+			case <-t.C:
+				closeFn()
+				console.Exit(err)
+			case <-ch:
+				t.Reset(cfg.Timeout)
+			}
+		}
+	}()
+
+	// -----------
+
+	var proxyMode = tools.GetArgs([]string{"proxy", "--proxy"}, args)
+	switch proxyMode {
+	case "socks5":
+		// socks5 proxy
+		l, err = net.Listen("tcp", cfg.LocalAddress)
+		if err != nil {
+			console.Exit(err)
+		}
+		go func() {
+			var err = Socks5(l)
+			if !isClose {
+				console.Exit(err)
+			} else {
+				console.Error(err)
+			}
+		}()
+
+	case "tcp":
+		// tcp proxy
+		var target = tools.GetArgs([]string{proxyMode}, args)
+		if target == "" {
+			console.Exit("target argument is required")
+		}
+
+		l, err = net.Listen("tcp", cfg.LocalAddress)
+		if err != nil {
+			console.Exit(err)
+		}
+		go func() {
+			var err = Tcp(l, target)
+			if !isClose {
+				console.Exit(err)
+			} else {
+				console.Error(err)
+			}
+		}()
+
+	case "http", "https":
+		// https proxy
+		l, err = net.Listen("tcp", cfg.LocalAddress)
+		if err != nil {
+			console.Exit(err)
+		}
+		go func() {
+			var err = Http(l)
+			if !isClose {
+				console.Exit(err)
+			} else {
+				console.Error(err)
+			}
+		}()
+	}
+
+	// -----------
+
+	go func() {
+		for {
+			// Setup localConn (type net.Conn)
+			remoteConn, err := remoteListener.Accept()
+			if err != nil {
+				break
+			}
+
+			go func() {
+				// Setup localListener (type net.Listener)
+				localConn, err := net.Dial("tcp", cfg.LocalAddress)
+				if err != nil {
+					console.Error("Dial localAddr:", cfg.LocalAddress, err)
+					return
+				}
+
+				// Copy localConn.Reader to sshConn.Writer
+				go func() {
+					_, _ = io.Copy(localConn, remoteConn)
+					_ = localConn.Close()
+					_ = remoteConn.Close()
+				}()
+
+				// Copy sshConn.Reader to localConn.Writer
+				go func() {
+					_, _ = io.Copy(remoteConn, localConn)
+					_ = localConn.Close()
+					_ = remoteConn.Close()
+				}()
+
+			}()
+		}
+
+		if !isClose {
+			console.Exit("remoteListener closed")
+		} else {
+			console.Error("remoteListener closed")
+		}
+	}()
 
 	return stopChan, doneChan, err
 }

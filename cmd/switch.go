@@ -139,7 +139,7 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 		return err.Error()
 	}
 
-	var ch = make(chan struct{})
+	var readyPod = make(chan struct{})
 	var pod *v12.Pod
 
 	go func() {
@@ -147,7 +147,7 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 			select {
 			case event, ok := <-watch.ResultChan():
 				if !ok {
-					ch <- struct{}{}
+					readyPod <- struct{}{}
 					return
 				}
 				p, ok := event.Object.(*v12.Pod)
@@ -165,7 +165,7 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 		}
 	}()
 
-	<-ch
+	<-readyPod
 
 	console.Info("create deployment:", deployment.ObjectMeta.Name)
 
@@ -180,33 +180,33 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 
 	net.CreateNetWorkByIp(service.Switch.Pod)
 
-	ch, st, err := k8s.ForwardPod(namespace, pod.ObjectMeta.Name, []string{"0.0.0.0"}, []string{"2222:2222"})
+	readyPod, stopPod, err := k8s.ForwardPod(namespace, pod.ObjectMeta.Name, []string{"0.0.0.0"}, []string{"2222:2222"})
 	if err != nil {
 		return err.Error()
 	}
 
-	<-ch
+	<-readyPod
 
-	service.Switch.StopForward = st
+	service.Switch.StopForward = stopPod
 
 	// ssh
 	var remoteAddr = fmt.Sprintf("%s:%d", pod.Status.PodIP, service.Port[0].Port)
 	var localAddr = fmt.Sprintf("%s:%d", "127.0.0.1", utils.Ternary.Int(port == 0, int(service.Port[0].Port), port))
-	st, _, err = ssh.RemoteForward(ssh.Config{
-		UserName:          "root",
-		Password:          "root",
-		ServerAddress:     "127.0.0.1:2222",
-		RemoteAddress:     remoteAddr,
-		LocalAddress:      localAddr,
-		Timeout:           time.Second * 3,
-		Reconnect:         0,
+	stopSSH, _, err := ssh.RemoteForward(ssh.Config{
+		UserName:      "root",
+		Password:      "root",
+		ServerAddress: "127.0.0.1:2222",
+		RemoteAddress: remoteAddr,
+		LocalAddress:  localAddr,
+		Timeout:       time.Second * 3,
+		// Reconnect:         0,
 		HeartbeatInterval: time.Second,
 	})
 	if err != nil {
 		return err.Error()
 	}
 
-	service.Switch.StopSSH = st
+	service.Switch.StopSSH = stopSSH
 
 	return fmt.Sprintf("switch %s %s %s success", resource, namespace, name)
 }

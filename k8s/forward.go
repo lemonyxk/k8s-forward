@@ -106,7 +106,7 @@ func ForwardService(service *config.Service) (chan struct{}, error) {
 
 func ForwardPod(namespace string, name string, ip []string, port []string) (chan struct{}, chan struct{}, error) {
 
-	var ch = make(chan struct{}, 1)
+	var ready = make(chan struct{}, 1)
 
 	var client = app.Client
 
@@ -131,7 +131,7 @@ func ForwardPod(namespace string, name string, ip []string, port []string) (chan
 	go func() {
 		<-readyChan
 
-		ch <- struct{}{}
+		ready <- struct{}{}
 
 		console.Info("pod forward:", name, ip, port, "forward start")
 	}()
@@ -145,5 +145,5 @@ func ForwardPod(namespace string, name string, ip []string, port []string) (chan
 
 	}()
 
-	return ch, stopChan, nil
+	return ready, stopChan, nil
 }

@@ -12,7 +12,7 @@ package k8s
 
 import (
 	"github.com/lemonyxk/k8s-forward/app"
-	"github.com/lemonyxk/k8s-forward/tools"
+	"github.com/lemoyxk/console"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -22,7 +22,7 @@ func NewRestConfig() *rest.Config {
 	// use the current context in kube config
 	config, err := clientcmd.BuildConfigFromFlags("", app.Config.KubePath)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	return config
@@ -33,7 +33,7 @@ func NewClient() *kubernetes.Clientset {
 	// create the client
 	client, err := kubernetes.NewForConfig(app.RestConfig)
 	if err != nil {
-		tools.Exit(err)
+		console.Exit(err)
 	}
 
 	return client

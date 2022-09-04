@@ -12,6 +12,7 @@ package ssh
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -60,7 +61,7 @@ import (
 // }
 // }
 
-func Http(l net.Listener) {
+func Http(l net.Listener) error {
 
 	console.Info("Http server listen on:", l.Addr().String())
 
@@ -75,7 +76,7 @@ func Http(l net.Listener) {
 
 	_ = l.Close()
 
-	console.Info("Http server stopped")
+	return errors.New("http server stopped")
 }
 
 func httpHandler(client net.Conn) {

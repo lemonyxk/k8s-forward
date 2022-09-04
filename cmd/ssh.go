@@ -71,20 +71,20 @@ func SSH(args []string) {
 
 	console.Info("user:", user, "server:", serverAddr, "remote:", remote, "local", local)
 
-	var reconnectInterval time.Duration = 0
-	var reconnect = tools.HasArgs("--reconnect", args)
-	if reconnect {
-		reconnectInterval = time.Second
-	}
+	// var reconnectInterval time.Duration = 0
+	// var reconnect = tools.HasArgs("--reconnect", args)
+	// if reconnect {
+	// 	reconnectInterval = time.Second
+	// }
 
 	var config = ssh.Config{
-		UserName:          user,
-		Password:          password,
-		ServerAddress:     serverAddr,
-		RemoteAddress:     remote,
-		LocalAddress:      local,
-		Timeout:           time.Second * 3,
-		Reconnect:         reconnectInterval,
+		UserName:      user,
+		Password:      password,
+		ServerAddress: serverAddr,
+		RemoteAddress: remote,
+		LocalAddress:  local,
+		Timeout:       time.Second * 3,
+		// Reconnect:         reconnectInterval,
 		HeartbeatInterval: time.Second * 1,
 	}
 

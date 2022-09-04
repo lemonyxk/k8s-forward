@@ -11,13 +11,14 @@
 package ssh
 
 import (
+	"errors"
 	"io"
 	"net"
 
 	"github.com/lemoyxk/console"
 )
 
-func Tcp(l net.Listener, remote string) {
+func Tcp(l net.Listener, remote string) error {
 	console.Info("Tcp server listen on:", l.Addr().String())
 
 	for {
@@ -37,7 +38,7 @@ func Tcp(l net.Listener, remote string) {
 
 	_ = l.Close()
 
-	console.Info("Tcp server closed")
+	return errors.New("tcp server closed")
 }
 
 func tcpHandle(localConn net.Conn, remoteConn net.Conn) {
