@@ -5,7 +5,7 @@ How to use:
 
 1.first, you need connect to k8s cluster.
 
-  $ sudo k8s-forward connect
+  $ sudo k8s-forward-cli connect
   +-----------+-------------------+------------------------------------+----------------+-------------------+
   | NAMESPACE | SERVICE_NAME      | POD_NAME                           | POD_IP         | POD_PORT          |
   +-----------+-------------------+------------------------------------+----------------+-------------------+
@@ -35,7 +35,7 @@ How to use:
 2.second, if you want to forward remote to the local port, 
   open another terminal and run the command:
 
-  $ sudo k8s-forward switch deployment nginx -n default
+  $ sudo k8s-forward-cli switch deployment nginx -n default
 
   create a http server on localhost:
   
@@ -51,11 +51,11 @@ How to use:
 
 3.recover the switch:
 
-  $ sudo k8s-forward recover deployment nginx -n default
+  $ sudo k8s-forward-cli recover deployment nginx -n default
 
 4.clean up:
 
-  $ sudo k8s-forward clean
+  $ sudo k8s-forward-cli clean
   
   it will run automatically when the program ends.
   
@@ -63,27 +63,23 @@ How to use:
 
   1.forward local to remote:
     
-    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -L -p 123456
+    $ sudo k8s-forward-cli ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -L -p 123456
   
   2.forward remote to local:
   
-    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456
+    $ sudo k8s-forward-cli ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456
   
   3.socks5:
 
-    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 -S
+    $ sudo k8s-forward-cli ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 --proxy socks5
   
   4.tcp:
   
-    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 --tcp localhost:12347
+    $ sudo k8s-forward-cli ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 --proxy tcp localhost:12347
   
   5.http:
 
-    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 --http[https] www.domain.com
-  
-  or:
-
-    $ sudo k8s-forward ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 --http[https] a b
+    $ sudo k8s-forward-cli ssh remote 127.0.0.1:12345 local 127.0.0.1:12346 server user@127.0.0.1:22 -R -p 123456 --proxy http[https]
   
   this will replace the a in the original host with b.      
 ```
