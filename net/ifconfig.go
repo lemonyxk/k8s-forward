@@ -149,6 +149,21 @@ func createDarwin(ip []string) {
 	}
 }
 
+func createWindows(ip []string) {
+	// netsh interface ip add address "WI-FI" 192.168.0.100 255.255.255.255
+	// you need get interface first
+	// netsh interface show interface
+	var interfaceName = "WI-FI"
+	for i := 0; i < len(ip); i++ {
+		var err = ExecCmd("netsh", "interface", "ip", "add", "address", interfaceName, ip[i], "255.255.255.255")
+		if err != nil {
+			console.Error("network: ip", ip[i], "create failed: ", err)
+		} else {
+			console.Info("network: ip", ip[i], "create success")
+		}
+	}
+}
+
 func deleteLinux(ip []string) {
 	// ifconfig eth0:0 del 192.168.0.100
 	for i := 0; i < len(ip); i++ {
@@ -165,6 +180,21 @@ func deleteDarwin(ip []string) {
 	// sudo ifconfig en0 alias delete 192.168.0.100
 	for i := 0; i < len(ip); i++ {
 		var err = ExecCmd("ifconfig", "en0", "alias", "delete", ip[i])
+		if err != nil {
+			console.Error("network: ip", ip[i], "delete failed: ", err)
+		} else {
+			console.Warning("network: ip", ip[i], "delete success")
+		}
+	}
+}
+
+func deleteWindows(ip []string) {
+	// netsh interface ip delete address "WI-FI" 192.168.0.100
+	// you need get interface first
+	// netsh interface show interface
+	var interfaceName = "WI-FI"
+	for i := 0; i < len(ip); i++ {
+		var err = ExecCmd("netsh", "interface", "ip", "delete", "address", interfaceName, ip[i])
 		if err != nil {
 			console.Error("network: ip", ip[i], "delete failed: ", err)
 		} else {
