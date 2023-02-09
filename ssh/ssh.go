@@ -182,8 +182,10 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 			}()
 			select {
 			case <-t.C:
-				closeFn()
-				console.Exit(err)
+				if !isClose {
+					closeFn()
+					console.Exit(err)
+				}
 			case <-ch:
 				t.Reset(cfg.Timeout)
 			}
@@ -385,8 +387,10 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 			}()
 			select {
 			case <-t.C:
-				closeFn()
-				console.Exit(err)
+				if !isClose {
+					closeFn()
+					console.Exit(err)
+				}
 			case <-ch:
 				t.Reset(cfg.Timeout)
 			}
