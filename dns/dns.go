@@ -20,7 +20,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-var defaultDNS = ""
+var defaultDNS = []string{"8.8.8.8"}
 
 var dnsCache = &cache{}
 
@@ -30,112 +30,146 @@ type cache struct {
 }
 
 type data struct {
-	a []dns.RR
-	t time.Time
+	a  []dns.RR
+	ip string
+	t  time.Time
 }
 
 func (c *cache) init() {
 	c.data = make(map[string]*data)
 }
 
-func (c *cache) Set(domain string, a []dns.RR) {
+func (c *cache) Set(domain string, ip string, a []dns.RR) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	c.data[domain] = &data{a: a, t: time.Now()}
+	c.data[domain] = &data{a: a, ip: ip, t: time.Now()}
 }
 
-func (c *cache) Get(domain string) []dns.RR {
+func (c *cache) Get(domain string) (string, []dns.RR) {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 	if d, ok := c.data[domain]; ok {
 		if time.Now().Sub(d.t) < time.Minute*3 {
-			return d.a
+			return d.ip, d.a
 		}
 	}
-	return nil
+	return "", nil
 }
 
 type handler struct{}
 
 func (t *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	msg := dns.Msg{}
+	var msg = &dns.Msg{}
 	msg.SetReply(r)
-	switch r.Question[0].Qtype {
-	case dns.TypeA:
-		msg.Authoritative = true
-		domain := msg.Question[0].Name
-		service, ok := app.DnsDomain[domain]
-		if ok {
 
-			if service.Status == config.Stop && service.Switch == nil {
-				var ch, err = k8s.ForwardService(service)
-				if err != nil {
-					console.Error(err)
-				} else {
-					<-ch
-				}
-			}
+	var domain = msg.Question[0].Name
+	var tp = r.Question[0].Qtype
+	// && tp != dns.TypeHTTPS
+	if tp != dns.TypeA {
+		err := w.WriteMsg(msg)
+		if err != nil {
+			console.Error(err)
+		}
+		return
+	}
 
-			var ip = ""
+	msg.Authoritative = true
 
-			if service.Pod != nil {
-				ip = service.Pod.IP
-			}
+	// cache
+	var ip, aCache = dnsCache.Get(domain)
+	if aCache != nil {
+		msg.Answer = aCache
+		doHandler(w, domain, ip, msg)
+		return
+	}
 
-			if service.Switch != nil {
-				ip = service.Switch.Pod.IP
-			}
-
-			msg.Answer = append(msg.Answer, &dns.A{
-				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 1},
-				A:   net.ParseIP(ip),
-			})
-		} else {
-			var aCache = dnsCache.Get(domain)
-			if aCache != nil {
-				msg.Answer = aCache
+	service, ok := app.DnsDomain[domain]
+	if ok {
+		if service.Status == config.Stop && service.Switch == nil {
+			var ch, err = k8s.ForwardService(service)
+			if err != nil {
+				console.Error(err)
 			} else {
-				var m = dns.Msg{}
-				m.SetQuestion(domain, dns.TypeA)
-				r, err := dns.Exchange(&m, defaultDNS+":53")
-				if err != nil {
-					console.Exit(err)
-				}
-
-				var rr []dns.RR
-
-				for _, i2 := range r.Answer {
-					if i2.Header().Rrtype == dns.TypeA {
-						var a = &dns.A{
-							Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
-							A:   net.ParseIP(i2.(*dns.A).A.String()),
-						}
-						rr = append(rr, a)
-					}
-				}
-
-				msg.Answer = rr
-
-				dnsCache.Set(domain, rr)
+				<-ch
 			}
+		}
 
+		var ip = ""
+
+		if service.Pod != nil {
+			ip = service.Pod.IP
+		}
+
+		if service.Switch != nil {
+			ip = service.Switch.Pod.IP
+		}
+
+		var rr []dns.RR
+		var a = &dns.A{
+			Hdr: dns.RR_Header{Name: domain, Rrtype: tp, Class: dns.ClassINET, Ttl: 1},
+			A:   net.ParseIP(ip),
+		}
+		rr = append(rr, a)
+		msg.Answer = rr
+		dnsCache.Set(domain, ip, rr)
+
+		doHandler(w, domain, ip, msg)
+		return
+	}
+
+	var err error
+	var res *dns.Msg
+	var qes = (&dns.Msg{}).SetQuestion(domain, tp)
+	for i := 0; i < len(defaultDNS); i++ {
+		res, err = dns.Exchange(qes, defaultDNS[i]+":53")
+		if err != nil {
+			console.Error("trying to exchange", defaultDNS[i], "failed:", err.Error())
+		} else {
+			break
 		}
 	}
 
-	err := w.WriteMsg(&msg)
+	if res == nil {
+		doHandler(w, domain, ip, msg)
+		return
+	}
+
+	var rr []dns.RR
+	for _, i2 := range res.Answer {
+		if i2.Header().Rrtype == tp {
+			ip = i2.(*dns.A).A.String()
+			var a = &dns.A{
+				Hdr: dns.RR_Header{Name: domain, Rrtype: tp, Class: dns.ClassINET, Ttl: 60},
+				A:   net.ParseIP(ip),
+			}
+			rr = append(rr, a)
+		}
+	}
+
+	msg.Answer = rr
+	dnsCache.Set(domain, ip, rr)
+
+	doHandler(w, domain, ip, msg)
+	return
+}
+
+func doHandler(w dns.ResponseWriter, domain, ip string, msg *dns.Msg) {
+	console.Info(domain[0:len(domain)-1], "from:", w.RemoteAddr().String(), "to:", ip)
+	err := w.WriteMsg(msg)
 	if err != nil {
 		console.Error(err)
 	}
 }
 
 func AddNameServer() {
-	if runtime.GOOS == "linux" {
+	switch runtime.GOOS {
+	case "linux":
 		GetDefaultNDS()
 		addNameServerLinux()
-	} else if runtime.GOOS == "darwin" {
+	case "darwin":
 		GetDefaultNDS()
 		addNameServerDarwin()
-	} else if runtime.GOOS == "windows" {
+	default:
 		console.Exit("not support windows")
 	}
 }
@@ -148,35 +182,28 @@ func GetDefaultNDS() {
 
 	defer func() { _ = f.Close() }()
 
-	var lines []string
-
-	var reader = bufio.NewReader(f)
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			console.Exit(err)
-		}
-
-		lines = append(lines, line)
+	bts, err := io.ReadAll(f)
+	if err != nil {
+		console.Exit(err)
 	}
 
-	var si = -1
+	var arr []string
+
+	var lines = strings.Split(string(bts), "\n")
 
 	for i := 0; i < len(lines); i++ {
-		if strings.HasPrefix(lines[i], "nameserver") {
-			si = i
-			break
+		if strings.TrimSpace(lines[i]) == "" {
+			continue
+		}
+
+		if lines[i][0] != '#' && strings.Contains(lines[i], "nameserver") {
+			arr = append(arr, strings.TrimSpace(strings.ReplaceAll(lines[i], "nameserver", "")))
 		}
 	}
 
-	if si != -1 {
-		defaultDNS = strings.TrimSpace(strings.Split(lines[si], " ")[1])
+	if len(arr) != 0 {
+		defaultDNS = arr
 	}
-
 }
 
 func addNameServerDarwin() {
@@ -272,11 +299,12 @@ func addNameServerLinux() {
 }
 
 func DeleteNameServer() {
-	if runtime.GOOS == "linux" {
+	switch runtime.GOOS {
+	case "linux":
 		deleteNameServerLinux()
-	} else if runtime.GOOS == "darwin" {
+	case "darwin":
 		deleteNameServerDarwin()
-	} else if runtime.GOOS == "windows" {
+	default:
 		console.Exit("not support windows")
 	}
 }
