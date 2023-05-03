@@ -16,7 +16,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/lemoyxk/console"
+	"github.com/lemonyxk/console"
 )
 
 var CallBack func([]string) string

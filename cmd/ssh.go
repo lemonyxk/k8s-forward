@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/ssh"
 	"github.com/lemonyxk/k8s-forward/tools"
-	"github.com/lemoyxk/console"
 	"golang.org/x/term"
 )
 
@@ -42,7 +42,8 @@ func SSH(args []string) {
 	}
 
 	var password = tools.GetArgs([]string{"password", "-p", "--password"}, args)
-	if password == "" {
+	var hasPassword = tools.HasArgs([]string{"password", "-p", "--password"}, args)
+	if password == "" && hasPassword {
 		console.Infof("Password: ")
 		var bts, err = term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
@@ -53,10 +54,10 @@ func SSH(args []string) {
 	}
 
 	var mode string
-	if tools.HasArgs("-R", args) {
+	if tools.HasArgs([]string{"-R"}, args) {
 		mode = "-R"
 	}
-	if tools.HasArgs("-L", args) {
+	if tools.HasArgs([]string{"-L"}, args) {
 		mode = "-L"
 	}
 

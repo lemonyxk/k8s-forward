@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
 	"github.com/lemonyxk/k8s-forward/k8s"
 	"github.com/lemonyxk/k8s-forward/tools"
-	"github.com/lemoyxk/console"
 	"github.com/lemoyxk/utils"
 	"github.com/miekg/dns"
 )

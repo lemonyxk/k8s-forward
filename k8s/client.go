@@ -11,8 +11,8 @@
 package k8s
 
 import (
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
-	"github.com/lemoyxk/console"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

@@ -14,20 +14,17 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/lemonyxk/console"
+	"github.com/lemonyxk/exception"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/cmd"
 	"github.com/lemonyxk/k8s-forward/config"
-	"github.com/lemonyxk/k8s-forward/tools"
-	"github.com/lemoyxk/console"
-	"github.com/lemoyxk/exception"
 	"k8s.io/client-go/util/homedir"
 )
 
 func main() {
 
-	// console.SetFlags(console.LEVEL | console.TIME)
-	console.SetFlags(console.TIME)
-	console.SetInfoColor(console.FgGreen)
+	console.DefaultLogger.InfoColor = console.FgGreen
 
 	var home = homedir.HomeDir()
 
@@ -37,11 +34,6 @@ func main() {
 	var recordPath = flag.String("record", filepath.Join(home, ".k8s-forward", "record.json"), "(optional) absolute path to the kube record file")
 
 	flag.Parse()
-
-	var debug = tools.HasArgs("--debug", os.Args)
-	if debug {
-		console.SetFlags(console.FILE | console.TIME)
-	}
 
 	app.Config = &config.Config{KubePath: *kubePath, RecordPath: *recordPath}
 

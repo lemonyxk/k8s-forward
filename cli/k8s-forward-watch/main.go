@@ -16,22 +16,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/tools"
-	"github.com/lemoyxk/console"
 	"github.com/lemoyxk/utils"
 )
 
 func main() {
 
-	console.SetFlags(console.TIME)
-	console.SetInfoColor(console.FgGreen)
+	console.DefaultLogger.InfoColor = console.BgGreen
 
-	var debug = tools.HasArgs("--debug", os.Args)
-	if debug {
-		console.SetFlags(console.FILE | console.TIME)
-	}
-
-	var reconnect = tools.HasArgs("--reconnect", os.Args)
+	var reconnect = tools.HasArgs([]string{"--reconnect"}, os.Args)
 
 	var reconnectTimes = -1
 

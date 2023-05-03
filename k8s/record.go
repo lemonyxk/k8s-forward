@@ -16,9 +16,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
-	"github.com/lemoyxk/console"
 	"github.com/lemoyxk/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

@@ -16,10 +16,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
 	"github.com/lemonyxk/k8s-forward/tools"
-	"github.com/lemoyxk/console"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 )

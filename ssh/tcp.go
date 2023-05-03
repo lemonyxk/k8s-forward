@@ -15,7 +15,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/lemoyxk/console"
+	"github.com/lemonyxk/console"
 )
 
 func Tcp(l net.Listener, remote string) error {

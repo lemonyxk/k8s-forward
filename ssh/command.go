@@ -11,13 +11,15 @@
 package ssh
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
+	"time"
 
-	"github.com/lemoyxk/console"
+	"github.com/lemonyxk/console"
 	"github.com/olekukonko/ts"
 	"golang.org/x/crypto/ssh"
 )
@@ -185,7 +187,7 @@ func (c *Cmd) StderrPipe() (io.Reader, error) {
 }
 
 func InitSSHCommand(user, pass string, host string, port int) {
-	c, err := Server(user, pass, host, port)
+	c, err := Server(user, pass, fmt.Sprintf("%s:%d", host, port), 5*time.Second)
 	if err != nil {
 		panic(err)
 	}

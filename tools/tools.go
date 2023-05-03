@@ -16,8 +16,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
-	"github.com/lemoyxk/console"
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -70,10 +70,12 @@ func GetFlagAndArgs(flag []string, args []string) (string, string) {
 	return "", ""
 }
 
-func HasArgs(flag string, args []string) bool {
+func HasArgs(flag []string, args []string) bool {
 	for i := 0; i < len(args); i++ {
-		if args[i] == flag {
-			return true
+		for j := 0; j < len(flag); j++ {
+			if args[i] == flag[j] {
+				return true
+			}
 		}
 	}
 	return false

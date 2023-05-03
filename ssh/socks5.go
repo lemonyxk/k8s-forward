@@ -17,7 +17,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/lemoyxk/console"
+	"github.com/lemonyxk/console"
 )
 
 func Socks5(l net.Listener) error {

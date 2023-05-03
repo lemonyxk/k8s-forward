@@ -14,13 +14,13 @@ import (
 	"context"
 	"os"
 
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
 	"github.com/lemonyxk/k8s-forward/dns"
 	"github.com/lemonyxk/k8s-forward/ipc"
 	"github.com/lemonyxk/k8s-forward/k8s"
 	"github.com/lemonyxk/k8s-forward/net"
-	"github.com/lemoyxk/console"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/tools"
-	"github.com/lemoyxk/console"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -34,30 +34,46 @@ type Config struct {
 	HeartbeatInterval time.Duration
 }
 
-func Server(user, password, host string, port int) (*ssh.Client, error) {
+func Server(user, password, addr string, timeout time.Duration) (*ssh.Client, error) {
 	var (
 		auth         []ssh.AuthMethod
-		addr         string
 		clientConfig *ssh.ClientConfig
 		client       *ssh.Client
 		err          error
 	)
 
-	// get auth method
-	auth = make([]ssh.AuthMethod, 0)
-	auth = append(auth, ssh.Password(password))
+	if password == "" {
+		// read private key file
+		var homeDir, err = os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("get home dir failed %v", err)
+		}
+		var privateKeyPath = homeDir + "/.ssh/id_rsa"
+		pemBytes, err := os.ReadFile(privateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading private key file failed %v", err)
+		}
+		// create signer
+		// generate signer instance from plain key
+		signer, err := ssh.ParsePrivateKey(pemBytes)
+		if err != nil {
+			return nil, fmt.Errorf("parsing plain private key failed %v", err)
+		}
+
+		auth = append(auth, ssh.PublicKeys(signer))
+	} else {
+		// get auth method
+		auth = append(auth, ssh.Password(password))
+	}
 
 	clientConfig = &ssh.ClientConfig{
 		User:    user,
 		Auth:    auth,
-		Timeout: 3 * time.Second,
+		Timeout: timeout,
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			return nil
 		},
 	}
-
-	// connect to ssh
-	addr = fmt.Sprintf("%s:%d", host, port)
 
 	if client, err = ssh.Dial("tcp", addr, clientConfig); err != nil {
 		return nil, err
@@ -96,16 +112,6 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 	var isStop = false
 	var isClose = false
 
-	// Setup SSH config (type *ssh.ClientConfig)
-	var config = &ssh.ClientConfig{
-		User:    cfg.UserName,
-		Auth:    []ssh.AuthMethod{ssh.Password(cfg.Password)},
-		Timeout: cfg.Timeout,
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			return nil
-		},
-	}
-
 	// Setup sshClientConn (type *ssh.ClientConn)
 
 	var sshClientConn *ssh.Client
@@ -114,7 +120,7 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 	var err error
 	var l net.Listener
 
-	sshClientConn, err = ssh.Dial("tcp", cfg.ServerAddress, config)
+	sshClientConn, err = Server(cfg.UserName, cfg.Password, cfg.ServerAddress, cfg.Timeout)
 	if err != nil {
 		console.Exit(err)
 	}
@@ -175,7 +181,7 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 
 			var ch = make(chan struct{})
 			go func() {
-				_, err = session.SendRequest(config.User, true, nil)
+				_, err = session.SendRequest(cfg.UserName, true, nil)
 				if err == nil {
 					ch <- struct{}{}
 				}
@@ -301,16 +307,6 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 	var isStop = false
 	var isClose = false
 
-	// Setup SSH config (type *ssh.ClientConfig)
-	var config = ssh.ClientConfig{
-		User:    cfg.UserName,
-		Auth:    []ssh.AuthMethod{ssh.Password(cfg.Password)},
-		Timeout: cfg.Timeout,
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			return nil
-		},
-	}
-
 	// Setup sshClientConn (type *ssh.ClientConn)
 
 	var sshClientConn *ssh.Client
@@ -319,7 +315,7 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 	var err error
 	var l net.Listener
 
-	sshClientConn, err = ssh.Dial("tcp", cfg.ServerAddress, &config)
+	sshClientConn, err = Server(cfg.UserName, cfg.Password, cfg.ServerAddress, cfg.Timeout)
 	if err != nil {
 		console.Exit(err)
 	}
@@ -380,7 +376,7 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 
 			var ch = make(chan struct{})
 			go func() {
-				_, err = session.SendRequest(config.User, true, nil)
+				_, err = session.SendRequest(cfg.UserName, true, nil)
 				if err == nil {
 					ch <- struct{}{}
 				}

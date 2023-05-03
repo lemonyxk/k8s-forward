@@ -13,13 +13,13 @@ package cmd
 import (
 	"os"
 
+	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/dns"
 	"github.com/lemonyxk/k8s-forward/ipc"
 	"github.com/lemonyxk/k8s-forward/k8s"
 	"github.com/lemonyxk/k8s-forward/net"
-	"github.com/lemoyxk/console"
-	"github.com/lemoyxk/promise"
+	"github.com/lemonyxk/promise"
 	"github.com/lemoyxk/utils"
 )
 
@@ -40,24 +40,24 @@ func Connect() {
 
 	ipc.CallBack = Default
 
-	var p1 = promise.New(func(resolve promise.Resolve, reject promise.Reject) {
+	var p1 = promise.New(func(resolve func(int), reject func(error)) {
 		dns.AddNameServer()
 		net.CreateNetWork(app.Record)
-		resolve(nil)
+		resolve(0)
 	})
 
-	var p2 = promise.New(func(resolve promise.Resolve, reject promise.Reject) {
+	var p2 = promise.New(func(resolve func(int), reject func(error)) {
 		dns.StartDNS(func() {
-			resolve(nil)
+			resolve(0)
 		})
 	})
 
-	var p3 = promise.New(func(resolve promise.Resolve, reject promise.Reject) {
+	var p3 = promise.New(func(resolve func(int), reject func(error)) {
 		// k8s.ForwardHost()
-		resolve(nil)
+		resolve(0)
 	})
 
-	promise.Fall(p1, p2, p3).Then(func(result promise.Result) {
+	promise.Fall(p1, p2, p3).Then(func(result []int) {
 		console.Info("k8s-forward up")
 	})
 

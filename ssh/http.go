@@ -19,7 +19,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/lemoyxk/console"
+	"github.com/lemonyxk/console"
 )
 
 // type Handler struct {
