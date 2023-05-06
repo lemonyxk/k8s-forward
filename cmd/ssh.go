@@ -43,7 +43,8 @@ func SSH(args []string) {
 
 	var password = tools.GetArgs([]string{"password", "-p", "--password"}, args)
 	var hasPassword = tools.HasArgs([]string{"password", "-p", "--password"}, args)
-	if password == "" && hasPassword {
+	var privateKey = tools.GetArgs([]string{"-key", "--private-key"}, args)
+	if password == "" && hasPassword && privateKey == "" {
 		console.Infof("Password: ")
 		var bts, err = term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
@@ -72,20 +73,14 @@ func SSH(args []string) {
 
 	console.Info("user:", user, "server:", serverAddr, "remote:", remote, "local", local)
 
-	// var reconnectInterval time.Duration = 0
-	// var reconnect = tools.HasArgs("--reconnect", args)
-	// if reconnect {
-	// 	reconnectInterval = time.Second
-	// }
-
-	var config = ssh.Config{
-		UserName:      user,
-		Password:      password,
-		ServerAddress: serverAddr,
-		RemoteAddress: remote,
-		LocalAddress:  local,
-		Timeout:       time.Second * 3,
-		// Reconnect:         reconnectInterval,
+	var config = ssh.ForwardConfig{
+		UserName:          user,
+		Password:          password,
+		PrivateKey:        privateKey,
+		ServerAddress:     serverAddr,
+		RemoteAddress:     remote,
+		LocalAddress:      local,
+		Timeout:           time.Second * 3,
 		HeartbeatInterval: time.Second * 1,
 	}
 

@@ -11,13 +11,11 @@
 package ssh
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/lemonyxk/console"
 	"github.com/olekukonko/ts"
@@ -186,8 +184,8 @@ func (c *Cmd) StderrPipe() (io.Reader, error) {
 	return c.session.StderrPipe()
 }
 
-func InitSSHCommand(user, pass string, host string, port int) {
-	c, err := Server(user, pass, fmt.Sprintf("%s:%d", host, port), 5*time.Second)
+func InitSSHCommand(config Config) {
+	c, err := SSH(config)
 	if err != nil {
 		panic(err)
 	}

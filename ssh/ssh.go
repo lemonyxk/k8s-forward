@@ -15,6 +15,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,18 +24,26 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type Config struct {
-	UserName      string
-	Password      string
-	ServerAddress string
-	RemoteAddress string
-	LocalAddress  string
-	Timeout       time.Duration
-	// Reconnect         time.Duration
+type ForwardConfig struct {
+	UserName          string
+	Password          string
+	PrivateKey        string
+	ServerAddress     string
+	RemoteAddress     string
+	LocalAddress      string
+	Timeout           time.Duration
 	HeartbeatInterval time.Duration
 }
 
-func Server(user, password, addr string, timeout time.Duration) (*ssh.Client, error) {
+type Config struct {
+	UserName   string
+	Password   string
+	Addr       string
+	PrivateKey string
+	Timeout    time.Duration
+}
+
+func SSH(config Config) (*ssh.Client, error) {
 	var (
 		auth         []ssh.AuthMethod
 		clientConfig *ssh.ClientConfig
@@ -42,17 +51,32 @@ func Server(user, password, addr string, timeout time.Duration) (*ssh.Client, er
 		err          error
 	)
 
-	if password == "" {
-		// read private key file
-		var homeDir, err = os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("get home dir failed %v", err)
+	if config.Password == "" {
+
+		var pemBytes []byte
+
+		if config.PrivateKey == "" {
+			// read private key file
+			var homeDir, err = os.UserHomeDir()
+			if err != nil {
+				return nil, fmt.Errorf("get home dir failed %v", err)
+			}
+			var privateKeyPath = homeDir + "/.ssh/id_rsa"
+			pemBytes, err = os.ReadFile(privateKeyPath)
+			if err != nil {
+				return nil, fmt.Errorf("reading private key file failed %v", err)
+			}
+		} else {
+			var absPath, err = filepath.Abs(config.PrivateKey)
+			if err != nil {
+				return nil, fmt.Errorf("get abs path failed %v", err)
+			}
+			pemBytes, err = os.ReadFile(absPath)
+			if err != nil {
+				return nil, fmt.Errorf("reading private key file failed %v", err)
+			}
 		}
-		var privateKeyPath = homeDir + "/.ssh/id_rsa"
-		pemBytes, err := os.ReadFile(privateKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("reading private key file failed %v", err)
-		}
+
 		// create signer
 		// generate signer instance from plain key
 		signer, err := ssh.ParsePrivateKey(pemBytes)
@@ -63,19 +87,19 @@ func Server(user, password, addr string, timeout time.Duration) (*ssh.Client, er
 		auth = append(auth, ssh.PublicKeys(signer))
 	} else {
 		// get auth method
-		auth = append(auth, ssh.Password(password))
+		auth = append(auth, ssh.Password(config.Password))
 	}
 
 	clientConfig = &ssh.ClientConfig{
-		User:    user,
+		User:    config.UserName,
 		Auth:    auth,
-		Timeout: timeout,
+		Timeout: config.Timeout,
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			return nil
 		},
 	}
 
-	if client, err = ssh.Dial("tcp", addr, clientConfig); err != nil {
+	if client, err = ssh.Dial("tcp", config.Addr, clientConfig); err != nil {
 		return nil, err
 	}
 
@@ -86,7 +110,7 @@ func sshListen(sshClientConn *ssh.Client, remoteAddr string) (net.Listener, erro
 	l, err := sshClientConn.Listen("tcp", remoteAddr)
 	if err != nil {
 		// net broken, not closed
-		if strings.HasSuffix(err.Error(), "tcpip-forward request denied by peer") {
+		if strings.HasSuffix(err.Error(), "tcp forward request denied by peer") {
 			conn, e := sshClientConn.Dial("tcp", remoteAddr)
 			if e != nil {
 				return nil, e
@@ -103,7 +127,7 @@ func sshListen(sshClientConn *ssh.Client, remoteAddr string) (net.Listener, erro
 	return l, nil
 }
 
-func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, error) {
+func LocalForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct{}, error) {
 
 	var stopChan = make(chan struct{}, 1)
 	var doneChan = make(chan struct{}, 1)
@@ -120,7 +144,7 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 	var err error
 	var l net.Listener
 
-	sshClientConn, err = Server(cfg.UserName, cfg.Password, cfg.ServerAddress, cfg.Timeout)
+	sshClientConn, err = SSH(Config{UserName: cfg.UserName, Password: cfg.Password, Addr: cfg.ServerAddress, Timeout: cfg.Timeout})
 	if err != nil {
 		console.Exit(err)
 	}
@@ -298,7 +322,7 @@ func LocalForward(cfg Config, args ...string) (chan struct{}, chan struct{}, err
 	return stopChan, doneChan, err
 }
 
-func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, error) {
+func RemoteForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct{}, error) {
 
 	var stopChan = make(chan struct{}, 1)
 	var doneChan = make(chan struct{}, 1)
@@ -315,7 +339,7 @@ func RemoteForward(cfg Config, args ...string) (chan struct{}, chan struct{}, er
 	var err error
 	var l net.Listener
 
-	sshClientConn, err = Server(cfg.UserName, cfg.Password, cfg.ServerAddress, cfg.Timeout)
+	sshClientConn, err = SSH(Config{UserName: cfg.UserName, Password: cfg.Password, Addr: cfg.ServerAddress, Timeout: cfg.Timeout})
 	if err != nil {
 		console.Exit(err)
 	}
