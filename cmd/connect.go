@@ -19,6 +19,7 @@ import (
 	"github.com/lemonyxk/k8s-forward/ipc"
 	"github.com/lemonyxk/k8s-forward/k8s"
 	"github.com/lemonyxk/k8s-forward/net"
+	"github.com/lemonyxk/k8s-forward/tools"
 	"github.com/lemonyxk/promise"
 	"github.com/lemoyxk/utils"
 )
@@ -26,11 +27,16 @@ import (
 func Connect() {
 	console.Infof("\r%s\n", "start k8s-forward...")
 
+	var namespace = tools.GetArgs([]string{"--namespace", "-n"}, os.Args)
+	if namespace == "" {
+		namespace = "default"
+	}
+
 	app.RestConfig = k8s.NewRestConfig()
 
 	app.Client = k8s.NewClient()
 
-	app.Record = k8s.GetRecord()
+	app.Record = k8s.GetRecord(namespace)
 
 	k8s.SaveRecordToFile(app.Record)
 

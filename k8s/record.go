@@ -23,11 +23,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetRecord() *config.Record {
+func GetRecord(namespace string) *config.Record {
 	var client = app.Client
 
 	// get services
-	svc, err := client.CoreV1().Services("default").List(context.TODO(), metav1.ListOptions{})
+	svc, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		console.Exit(err)
 	}
@@ -55,7 +55,7 @@ func GetRecord() *config.Record {
 	}
 
 	// get pods
-	ps, err := client.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
+	ps, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		console.Exit(err)
 	}
