@@ -10,7 +10,6 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/cmd"
 	"github.com/lemonyxk/k8s-forward/config"
+	"github.com/lemonyxk/k8s-forward/tools"
 	"k8s.io/client-go/util/homedir"
 )
 
@@ -30,12 +30,18 @@ func main() {
 
 	exception.Assert.True(home != "")
 
-	var kubePath = flag.String("kube", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kube config file")
-	var recordPath = flag.String("record", filepath.Join(home, ".k8s-forward", "record.json"), "(optional) absolute path to the kube record file")
+	var kubePath = tools.GetArgs([]string{"-kube", "--kubeconfig"}, os.Args)
+	var recordPath = tools.GetArgs([]string{"-record", "--record"}, os.Args)
 
-	flag.Parse()
+	if kubePath == "" {
+		kubePath = filepath.Join(home, ".kube", "config")
+	}
 
-	app.Config = &config.Config{KubePath: *kubePath, RecordPath: *recordPath}
+	if recordPath == "" {
+		recordPath = filepath.Join(home, ".k8s-forward", "record.json")
+	}
+
+	app.Config = &config.Config{KubePath: kubePath, RecordPath: recordPath}
 
 	if len(os.Args) < 2 {
 		console.Info(cmd.Help())
