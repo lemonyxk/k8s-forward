@@ -23,9 +23,11 @@ import (
 
 func main() {
 
-	console.DefaultLogger.InfoColor = console.BgGreen
+	console.DefaultLogger.InfoColor = console.FgGreen
 
-	var reconnect = tools.HasArgs([]string{"--reconnect"}, os.Args)
+	console.DefaultLogger.Colorful = true
+
+	var reconnect = tools.HasArgs("--reconnect")
 
 	var reconnectTimes = -1
 
@@ -53,7 +55,6 @@ func main() {
 func Run() error {
 	var commands []string
 	commands = append(commands, os.Args[1:]...)
-	// commands = append(commands, "--debug")
 
 	var cmd = exec.Command("k8s-forward-cli", commands...)
 	cmd.Stderr = os.Stderr

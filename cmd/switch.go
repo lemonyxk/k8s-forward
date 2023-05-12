@@ -13,6 +13,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -25,32 +26,29 @@ import (
 	"github.com/lemonyxk/k8s-forward/ssh"
 	"github.com/lemonyxk/k8s-forward/tools"
 	"github.com/lemoyxk/utils"
-	v1 "k8s.io/api/autoscaling/v1"
 	v12 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-func Switch(args []string) string {
+func Switch() string {
 
-	var resource = tools.GetArgs([]string{"switch", "-w", "--switch"}, args)
-	if resource == "" {
-		return "switch resource is empty"
-	}
+	var resource = os.Args[2]
+	var name = os.Args[3]
 
-	var name = tools.GetArgs([]string{resource}, args)
-	if name == "" {
-		return "switch resource name is empty"
-	}
-
-	var namespace = tools.GetArgs([]string{"--namespace", "-n"}, args)
+	var namespace = tools.GetArgs("--namespace", "-n")
 	if namespace == "" {
 		namespace = "default"
 	}
 
+	var image = tools.GetArgs("--image", "-i")
+	if image == "" {
+		image = `a1354243/root-ssh-server:latest`
+	}
+
 	var port = 0
 	var err error
-	var portStr = tools.GetArgs([]string{"-p", "--port"}, args)
+	var portStr = tools.GetArgs("-p", "--port")
 	if portStr != "" {
 		port, err = strconv.Atoi(portStr)
 		if err != nil {
@@ -58,10 +56,10 @@ func Switch(args []string) string {
 		}
 	}
 
-	return doSwitch(resource, namespace, name, port)
+	return doSwitch(resource, namespace, name, port, image)
 }
 
-func doSwitch(resource string, namespace string, name string, port int) string {
+func doSwitch(resource string, namespace string, name string, port int, image string) string {
 
 	var client = app.Client
 
@@ -93,14 +91,18 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 
 	console.Info("match service:", service.Name, "replicas:", scale.Spec.Replicas)
 
-	if service.Status == config.Start {
-		service.StopForward <- struct{}{}
+	if int(service.ForwardNumber) == len(service.Pod) {
+		for i := 0; i < len(service.StopForward); i++ {
+			service.StopForward[i] <- struct{}{}
+		}
 	}
 
 	// delete old pod ip
-	net.DeleteNetWorkByIp(service.Pod)
+	for i := 0; i < len(service.Pod); i++ {
+		app.Record.History = append(app.Record.History, service.Pod[i])
+	}
+
 	service.Pod = nil
-	k8s.SaveRecordToFile(app.Record)
 
 	us, err := UpdateScale(scale, 0)
 	if err != nil {
@@ -108,6 +110,7 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 	}
 
 	service.Switch.Scale = scale
+
 	k8s.SaveRecordToFile(app.Record)
 
 	console.Info("update service:", service.Name, "replicas:", us.Spec.Replicas)
@@ -117,21 +120,23 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 		return err.Error()
 	}
 
-	deployment.ObjectMeta.Name = "ssh-server-" + utils.Rand.UUID()
+	deployment.ObjectMeta.Name = service.Name + "-" + utils.Rand.UUID()
 	deployment.ObjectMeta.Namespace = service.Namespace
 	deployment.ObjectMeta.Labels = service.Selector
 	deployment.Spec.Template.ObjectMeta.Labels = service.Selector
 	deployment.Spec.Selector.MatchLabels = service.Selector
+	deployment.Spec.Template.Spec.Containers[0].Image = image
 
-	_, err = client.AppsV1().Deployments(service.Namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
+	_, err = client.AppsV1().Deployments(service.Namespace).Create(context.Background(), deployment, v1.CreateOptions{})
 	if err != nil {
 		return err.Error()
 	}
 
 	service.Switch.Deployment = deployment
+
 	k8s.SaveRecordToFile(app.Record)
 
-	watch, err := client.CoreV1().Pods(service.Namespace).Watch(context.Background(), metav1.ListOptions{
+	watch, err := client.CoreV1().Pods(service.Namespace).Watch(context.Background(), v1.ListOptions{
 		Watch:         true,
 		LabelSelector: labels.Set(service.Selector).AsSelector().String(),
 	})
@@ -175,10 +180,13 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 		IP:          pod.Status.PodIP,
 		Labels:      pod.Labels,
 		HostNetwork: pod.Spec.HostNetwork,
+		Age:         pod.CreationTimestamp.Time,
+		Restarts:    pod.Status.ContainerStatuses[0].RestartCount,
 	}
-	k8s.SaveRecordToFile(app.Record)
 
 	net.CreateNetWorkByIp(service.Switch.Pod)
+
+	k8s.SaveRecordToFile(app.Record)
 
 	readyPod, stopPod, err := k8s.ForwardPod(namespace, pod.ObjectMeta.Name, []string{"0.0.0.0"}, []string{"2222:2222"})
 	if err != nil {
@@ -208,74 +216,7 @@ func doSwitch(resource string, namespace string, name string, port int) string {
 
 	service.Switch.StopSSH = stopSSH
 
+	console.Warning("switch", resource, namespace, name, "success")
+
 	return fmt.Sprintf("switch %s %s %s success", resource, namespace, name)
-}
-
-func GetScale(resource string, namespace string, name string) (*v1.Scale, error) {
-
-	var client = app.Client
-
-	resource = strings.ToLower(resource)
-
-	var scale *v1.Scale
-
-	switch resource {
-	case "deployment":
-		s, err := client.AppsV1().
-			Deployments(namespace).
-			GetScale(context.Background(), name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		scale = s
-
-	case "statefulset":
-		s, err := client.AppsV1().StatefulSets(namespace).
-			GetScale(context.Background(), name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		scale = s
-
-	case "daemonset":
-		return nil, fmt.Errorf("daemonset not support")
-	case "replicaset":
-		s, err := client.AppsV1().ReplicaSets(namespace).
-			GetScale(context.Background(), name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		scale = s
-
-	default:
-		return nil, fmt.Errorf("%s not support", resource)
-	}
-
-	scale.Kind = resource
-
-	return scale, nil
-}
-
-func UpdateScale(scale *v1.Scale, replicas int32) (*v1.Scale, error) {
-
-	var client = app.Client
-
-	sc := *scale
-	sc.Spec.Replicas = replicas
-
-	switch scale.Kind {
-	case "deployment":
-		return client.AppsV1().Deployments(scale.Namespace).UpdateScale(context.TODO(), scale.Name, &sc, metav1.UpdateOptions{})
-	case "statefulset":
-		return client.AppsV1().StatefulSets(scale.Namespace).UpdateScale(context.TODO(), scale.Name, &sc, metav1.UpdateOptions{})
-	case "daemonset":
-		return nil, fmt.Errorf("daemonset not support")
-	case "replicaset":
-		return client.AppsV1().ReplicaSets(scale.Namespace).UpdateScale(context.TODO(), scale.Name, &sc, metav1.UpdateOptions{})
-	default:
-		return nil, fmt.Errorf("%s not support", scale.Kind)
-	}
 }

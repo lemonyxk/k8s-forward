@@ -21,31 +21,31 @@ import (
 	"golang.org/x/term"
 )
 
-func SSH(args []string) {
+func SSH() {
 
-	var local = tools.GetArgs([]string{"local", "-l", "--local"}, args)
+	var local = tools.GetArgs("-l", "--local")
 	if local == "" {
 		console.Error("local addr is required")
 		return
 	}
 
-	var remote = tools.GetArgs([]string{"remote", "-r", "--remote"}, args)
+	var remote = tools.GetArgs("-r", "--remote")
 	if remote == "" {
 		console.Error("remote addr is required")
 		return
 	}
 
-	var server = tools.GetArgs([]string{"server", "-s", "--server"}, args)
+	var server = tools.GetArgs("-s", "--server")
 	if server == "" {
 		console.Error("server addr is required")
 		return
 	}
 
-	var password = tools.GetArgs([]string{"password", "-p", "--password"}, args)
-	var hasPassword = tools.HasArgs([]string{"password", "-p", "--password"}, args)
-	var privateKey = tools.GetArgs([]string{"-key", "--private-key"}, args)
+	var password = tools.GetArgs("-p", "--password")
+	var hasPassword = tools.HasArgs("-p", "--password")
+	var privateKey = tools.GetArgs("-k", "--key")
 	if password == "" && hasPassword && privateKey == "" {
-		console.Infof("Password: ")
+		console.Infof("password: ")
 		var bts, err = term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			console.Error(err)
@@ -55,10 +55,10 @@ func SSH(args []string) {
 	}
 
 	var mode string
-	if tools.HasArgs([]string{"-R"}, args) {
+	if tools.HasArgs("-R") {
 		mode = "-R"
 	}
-	if tools.HasArgs([]string{"-L"}, args) {
+	if tools.HasArgs("-L") {
 		mode = "-L"
 	}
 
@@ -86,7 +86,7 @@ func SSH(args []string) {
 
 	switch mode {
 	case "-R":
-		_, done, err := ssh.RemoteForward(config, args...)
+		_, done, err := ssh.RemoteForward(config)
 		if err != nil {
 			console.Error(err)
 			return
@@ -97,7 +97,7 @@ func SSH(args []string) {
 			console.Info("remote forward done")
 		}
 	case "-L":
-		_, done, err := ssh.LocalForward(config, args...)
+		_, done, err := ssh.LocalForward(config)
 		if err != nil {
 			console.Error(err)
 			return

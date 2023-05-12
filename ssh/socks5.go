@@ -21,7 +21,7 @@ import (
 )
 
 func Socks5(l net.Listener) error {
-	console.Info("Socks5 server listen on:", l.Addr().String())
+	console.Info("cocks5 server listen on:", l.Addr().String())
 
 	for {
 		client, err := l.Accept()

@@ -19,7 +19,7 @@ import (
 )
 
 func Tcp(l net.Listener, remote string) error {
-	console.Info("Tcp server listen on:", l.Addr().String())
+	console.Info("tcp server listen on:", l.Addr().String())
 
 	for {
 		localConn, err := l.Accept()

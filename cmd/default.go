@@ -10,12 +10,21 @@
 
 package cmd
 
+import "os"
+
 func Default(args []string) string {
-	switch args[0] {
-	case "switch":
-		return Switch(args)
-	case "recover":
-		return Recover(args)
+
+	os.Args = args
+
+	if len(os.Args) < 4 {
+		return Help()
+	}
+
+	switch os.Args[1] {
+	case "switch", "-s":
+		return Switch()
+	case "recover", "-r":
+		return Recover()
 	default:
 		return Help()
 	}

@@ -11,17 +11,14 @@
 package cmd
 
 import (
-	"context"
 	"os"
 
-	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
 	"github.com/lemonyxk/k8s-forward/dns"
 	"github.com/lemonyxk/k8s-forward/ipc"
 	"github.com/lemonyxk/k8s-forward/k8s"
 	"github.com/lemonyxk/k8s-forward/net"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Clean(record *config.Record) {
@@ -44,92 +41,11 @@ func Clean(record *config.Record) {
 
 	net.DeleteNetWork(record)
 
-	dns.DeleteNameServer()
+	dns.DeleteNameServer(record)
 
 	UnScaleAll(record)
 
 	UnDeploymentAll(record)
 
 	_ = os.RemoveAll(app.Config.RecordPath)
-}
-
-func UnScaleAll(record *config.Record) {
-	for i := 0; i < len(record.Services); i++ {
-		err := UnScale(record.Services[i])
-		if err != nil {
-			console.Error(err)
-		}
-	}
-}
-
-func UnScale(service *config.Service) error {
-	if service == nil {
-		return nil
-	}
-
-	if service.Switch == nil {
-		return nil
-	}
-
-	var scale = service.Switch.Scale
-
-	if scale == nil {
-		return nil
-	}
-
-	if scale.Spec.Replicas == 0 {
-		return nil
-	}
-
-	var sc, err = GetScale(scale.Kind, scale.Namespace, scale.Name)
-	if err != nil {
-		return err
-	}
-
-	sc.Spec.Replicas = scale.Spec.Replicas
-
-	_, err = UpdateScale(sc, sc.Spec.Replicas)
-	if err != nil {
-		return err
-	}
-
-	console.Warning("recover scale:", sc.Name, "replicas", sc.Spec.Replicas)
-
-	return nil
-}
-
-func UnDeploymentAll(record *config.Record) {
-	for i := 0; i < len(record.Services); i++ {
-		err := UnDeployment(record.Services[i])
-		if err != nil {
-			console.Error(err)
-		}
-	}
-}
-
-func UnDeployment(service *config.Service) error {
-	if service == nil {
-		return nil
-	}
-
-	if service.Switch == nil {
-		return nil
-	}
-
-	if service.Switch.Deployment == nil {
-		return nil
-	}
-
-	var client = app.Client
-
-	var deployment = service.Switch.Deployment
-
-	err := client.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-
-	console.Warning("delete deployment:", deployment.Name)
-
-	return nil
 }

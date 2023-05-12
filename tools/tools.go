@@ -16,26 +16,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
-
-var bin = ""
-
-func GetBin() string {
-	if bin == "" {
-		// Figure out our executable
-		var err error
-		bin, err = os.Executable()
-		if err != nil {
-			console.Exit(err)
-		}
-	}
-	return bin
-}
 
 func ReplaceString(s string, oList []string, nList []string) string {
 	for i := 0; i < len(oList); i++ {
@@ -44,7 +29,8 @@ func ReplaceString(s string, oList []string, nList []string) string {
 	return s
 }
 
-func GetArgs(flag []string, args []string) string {
+func GetArgs(flag ...string) string {
+	var args = os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		for j := 0; j < len(flag); j++ {
 			if args[i] == flag[j] {
@@ -57,7 +43,33 @@ func GetArgs(flag []string, args []string) string {
 	return ""
 }
 
-func GetFlagAndArgs(flag []string, args []string) (string, string) {
+func GetMultiArgs(flag ...string) []string {
+	var args = os.Args[1:]
+	var res []string
+	for i := 0; i < len(args); i++ {
+		for j := 0; j < len(flag); j++ {
+			if args[i] == flag[j] {
+				if i+1 < len(args) {
+					res = append(res, args[i+1])
+					for {
+						i++
+						if i+1 >= len(args) {
+							break
+						}
+						if strings.HasPrefix(args[i+1], "-") {
+							break
+						}
+						res = append(res, args[i+1])
+					}
+				}
+			}
+		}
+	}
+	return res
+}
+
+func GetFlagAndArgs(flag ...string) (string, string) {
+	var args = os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		for j := 0; j < len(flag); j++ {
 			if args[i] == flag[j] {
@@ -70,7 +82,8 @@ func GetFlagAndArgs(flag []string, args []string) (string, string) {
 	return "", ""
 }
 
-func HasArgs(flag []string, args []string) bool {
+func HasArgs(flag ...string) bool {
+	var args = os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		for j := 0; j < len(flag); j++ {
 			if args[i] == flag[j] {

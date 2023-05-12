@@ -11,17 +11,22 @@
 package cmd
 
 import (
-	"strings"
+	"os"
 
 	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/ipc"
 	"github.com/lemonyxk/k8s-forward/k8s"
 )
 
-func Cmd(args []string) {
+func Cmd() {
 
-	switch args[1] {
+	console.DefaultLogger.Flags = console.NONE
+
+	switch os.Args[1] {
 	case "connect":
+		console.DefaultLogger.Flags = console.TIME | console.FILE
+		console.DefaultLogger.InfoColor = console.FgGreen
+		console.DefaultLogger.Colorful = true
 		Clean(k8s.GetRecordFromFile())
 		Connect()
 	case "clean":
@@ -29,9 +34,8 @@ func Cmd(args []string) {
 	case "help":
 		console.Info(Help())
 	case "ssh":
-		SSH(args[1:])
+		SSH()
 	default:
-		ipc.Write(strings.Join(args[1:], " "))
+		ipc.Write(os.Args)
 	}
-
 }

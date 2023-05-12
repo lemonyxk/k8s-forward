@@ -22,48 +22,9 @@ import (
 	"github.com/lemonyxk/console"
 )
 
-// type Handler struct {
-// 	Scheme string
-// 	List   []string
-// }
-
-// func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-// if len(h.List) == 1 {
-// 	r.Host = h.List[0]
-// }
-//
-// if len(h.List) == 2 {
-// 	r.Host = strings.ReplaceAll(r.Host, h.List[0], h.List[1])
-// }
-//
-// var proxy = httputil.NewSingleHostReverseProxy(&url.URL{Scheme: h.Scheme, Host: r.Host})
-//
-// proxy.ServeHTTP(w, r)
-
-// }
-
-// func Http(l net.Listener) {
-// if len(list) == 0 {
-// 	console.Error("[-] no target")
-// 	return
-// }
-
-// var handler = &Handler{Scheme: scheme, List: list}
-//
-// var server = http.Server{
-// 	Handler: handler,
-// }
-//
-// var err = server.Serve(l)
-// if err != nil {
-// 	console.Error(err)
-// 	return
-// }
-// }
-
 func Http(l net.Listener) error {
 
-	console.Info("Http server listen on:", l.Addr().String())
+	console.Info("http server listen on:", l.Addr().String())
 
 	for {
 		client, err := l.Accept()
@@ -106,12 +67,12 @@ func httpHandler(client net.Conn) {
 	var h string
 	var p string
 
-	if hostPortURL.Opaque == "443" { // https访问
+	if hostPortURL.Opaque == "443" {
 		h = hostPortURL.Scheme
 		p = "443"
-	} else { // http访问
+	} else {
 		var index = strings.Index(hostPortURL.Host, ":")
-		if index == -1 { // host不带端口， 默认80
+		if index == -1 {
 			h = hostPortURL.Host
 			p = "80"
 		} else {

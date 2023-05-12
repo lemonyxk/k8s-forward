@@ -24,30 +24,24 @@ import (
 
 func main() {
 
-	console.DefaultLogger.InfoColor = console.FgGreen
-
 	var home = homedir.HomeDir()
 
 	exception.Assert.True(home != "")
 
-	var kubePath = tools.GetArgs([]string{"-kube", "--kubeconfig"}, os.Args)
-	var recordPath = tools.GetArgs([]string{"-record", "--record"}, os.Args)
+	var kubePath = tools.GetArgs("-kube", "--kubeconfig")
+	var homePath = filepath.Join(home, ".k8s-forward")
+	var recordPath = filepath.Join(homePath, "record.json")
 
 	if kubePath == "" {
 		kubePath = filepath.Join(home, ".kube", "config")
 	}
 
-	if recordPath == "" {
-		recordPath = filepath.Join(home, ".k8s-forward", "record.json")
-	}
-
-	app.Config = &config.Config{KubePath: kubePath, RecordPath: recordPath}
+	app.Config = &config.Config{KubePath: kubePath, RecordPath: recordPath, HomePath: homePath}
 
 	if len(os.Args) < 2 {
 		console.Info(cmd.Help())
 		return
 	}
 
-	cmd.Cmd(os.Args)
-
+	cmd.Cmd()
 }

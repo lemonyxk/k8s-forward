@@ -23,52 +23,52 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetRecord(namespace string) *config.Record {
-	var client = app.Client
-
-	// get services
-	svc, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		console.Exit(err)
-	}
+func GetRecord(namespaces ...string) *config.Record {
 
 	var services []*config.Service
-	for i := 0; i < len(svc.Items); i++ {
-
-		// var selector = make(map[string]string)
-		//
-		// for k, v := range svc.Items[i].Spec.Selector {
-		// 	selector[k] = v
-		// }
-
-		// for k, v := range svc.Items[i].Labels {
-		// 	labels[k] = v
-		// }
-
-		services = append(services, &config.Service{
-			Namespace: svc.Items[i].Namespace,
-			Name:      svc.Items[i].Name,
-			ClusterIP: svc.Items[i].Spec.ClusterIP,
-			Port:      svc.Items[i].Spec.Ports,
-			Selector:  svc.Items[i].Spec.Selector,
-		})
-	}
-
-	// get pods
-	ps, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		console.Exit(err)
-	}
 
 	var pods []*config.Pod
-	for i := 0; i < len(ps.Items); i++ {
-		pods = append(pods, &config.Pod{
-			Namespace:   ps.Items[i].Namespace,
-			Name:        ps.Items[i].Name,
-			IP:          ps.Items[i].Status.PodIP,
-			Labels:      ps.Items[i].Labels,
-			HostNetwork: ps.Items[i].Spec.HostNetwork,
-		})
+
+	var client = app.Client
+
+	for i := 0; i < len(namespaces); i++ {
+		var namespace = namespaces[i]
+
+		// get services
+		svc, err := client.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			console.Exit(err)
+		}
+
+		for j := 0; j < len(svc.Items); j++ {
+			services = append(services, &config.Service{
+				Namespace: svc.Items[j].Namespace,
+				Name:      svc.Items[j].Name,
+				ClusterIP: svc.Items[j].Spec.ClusterIP,
+				Port:      svc.Items[j].Spec.Ports,
+				Selector:  svc.Items[j].Spec.Selector,
+				Labels:    svc.Items[j].Labels,
+				Type:      svc.Items[j].Spec.Type,
+			})
+		}
+
+		// get pods
+		ps, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			console.Exit(err)
+		}
+
+		for j := 0; j < len(ps.Items); j++ {
+			pods = append(pods, &config.Pod{
+				Namespace:   ps.Items[j].Namespace,
+				Name:        ps.Items[j].Name,
+				IP:          ps.Items[j].Status.PodIP,
+				Labels:      ps.Items[j].Labels,
+				HostNetwork: ps.Items[j].Spec.HostNetwork,
+				Age:         ps.Items[j].CreationTimestamp.Time,
+				Restarts:    ps.Items[j].Status.ContainerStatuses[0].RestartCount,
+			})
+		}
 	}
 
 	// Match pods to services
@@ -83,15 +83,16 @@ func GetRecord(namespace string) *config.Record {
 			}
 
 			if Match(pod.Labels, service.Selector) {
-				service.Pod = pod
-				break
+				service.Pod = append(service.Pod, pod)
 			}
 		}
 	}
 
 	var record = &config.Record{
-		Services: services,
-		Pods:     pods,
+		Services:   services,
+		Pods:       pods,
+		Namespaces: namespaces,
+		History:    nil,
 	}
 
 	return record

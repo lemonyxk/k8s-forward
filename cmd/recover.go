@@ -13,6 +13,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/lemonyxk/console"
@@ -26,18 +27,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-func Recover(args []string) string {
-	var resource = tools.GetArgs([]string{"recover", "-r", "--recover"}, args)
-	if resource == "" {
-		return "recover resource is empty"
-	}
+func Recover() string {
+	var resource = os.Args[2]
+	var name = os.Args[3]
 
-	var name = tools.GetArgs([]string{resource}, args)
-	if name == "" {
-		return "recover resource name is empty"
-	}
-
-	var namespace = tools.GetArgs([]string{"--namespace", "-n"}, args)
+	var namespace = tools.GetArgs("--namespace", "-n")
 	if namespace == "" {
 		namespace = "default"
 	}
@@ -84,16 +78,17 @@ func doRecover(resource string, namespace string, name string) string {
 		return fmt.Sprintf("%s %s %s has not scale", resource, namespace, name)
 	}
 
-	console.Info("match service:", service.Name, "replicas:", scale.Spec.Replicas)
+	var podNum = service.Switch.Scale.Spec.Replicas
+
+	console.Info("match service:", service.Name, "replicas:", scale.Spec.Replicas, podNum)
 
 	err = UnScale(service)
 	if err != nil {
 		return err.Error()
 	}
 
-	console.Info("update service:", service.Name, "replicas:", service.Switch.Scale.Spec.Replicas)
-
 	service.Switch.Scale = nil
+
 	k8s.SaveRecordToFile(app.Record)
 
 	watch, err := client.CoreV1().Pods(service.Namespace).Watch(context.Background(), metav1.ListOptions{
@@ -105,7 +100,7 @@ func doRecover(resource string, namespace string, name string) string {
 	}
 
 	var ch = make(chan struct{})
-	var pod *v12.Pod
+	var pod []*v12.Pod
 
 	go func() {
 		for {
@@ -122,8 +117,11 @@ func doRecover(resource string, namespace string, name string) string {
 
 				if strings.HasPrefix(p.Name, scale.Name) {
 					if p.Status.Phase == v12.PodRunning && p.Namespace == service.Namespace {
-						pod = p
-						watch.Stop()
+						pod = append(pod, p)
+						console.Info("new pod:", p.Name, "ip:", p.Status.PodIP)
+						if len(pod) == int(podNum) {
+							watch.Stop()
+						}
 					}
 				}
 			}
@@ -132,36 +130,42 @@ func doRecover(resource string, namespace string, name string) string {
 
 	<-ch
 
+	service.Switch.StopForward <- struct{}{}
+	service.Switch.StopSSH <- struct{}{}
+
 	err = UnDeployment(service)
 	if err != nil {
 		return err.Error()
 	}
 
-	service.Pod = &config.Pod{
-		Namespace:   pod.Namespace,
-		Name:        pod.Name,
-		IP:          pod.Status.PodIP,
-		Labels:      pod.Labels,
-		HostNetwork: pod.Spec.HostNetwork,
+	for i := 0; i < len(pod); i++ {
+		service.Pod = append(service.Pod, &config.Pod{
+			Namespace:   pod[i].Namespace,
+			Name:        pod[i].Name,
+			IP:          pod[i].Status.PodIP,
+			Labels:      pod[i].Labels,
+			HostNetwork: pod[i].Spec.HostNetwork,
+			Age:         pod[i].CreationTimestamp.Time,
+			Restarts:    pod[i].Status.ContainerStatuses[0].RestartCount,
+		})
 	}
-	k8s.SaveRecordToFile(app.Record)
 
-	net.CreateNetWorkByIp(service.Pod)
+	for i := 0; i < len(service.Pod); i++ {
+		net.CreateNetWorkByIp(service.Pod[i])
+	}
 
 	// delete switch pod ip
-	net.DeleteNetWorkByIp(service.Switch.Pod)
+	app.Record.History = append(app.Record.History, service.Switch.Pod)
 
 	service.Switch.Deployment = nil
-	k8s.SaveRecordToFile(app.Record)
 
 	service.Switch.Pod = nil
-	k8s.SaveRecordToFile(app.Record)
-
-	service.Switch.StopForward <- struct{}{}
-	service.Switch.StopSSH <- struct{}{}
 
 	service.Switch = nil
+
 	k8s.SaveRecordToFile(app.Record)
+
+	console.Warning("recover", resource, namespace, name, "success")
 
 	return fmt.Sprintf("%s %s %s recover success", resource, namespace, name)
 }

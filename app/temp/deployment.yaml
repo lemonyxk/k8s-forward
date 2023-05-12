@@ -3,16 +3,16 @@ kind: Deployment
 metadata:
   name: ssh-server
   labels:
-    app: center-server
+    app: ssh-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: center-server
+      app: ssh-server
   template:
     metadata:
       labels:
-        app: center-server
+        app: ssh-server
     spec:
       containers:
         - name: sshd

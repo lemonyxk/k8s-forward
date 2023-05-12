@@ -127,7 +127,7 @@ func sshListen(sshClientConn *ssh.Client, remoteAddr string) (net.Listener, erro
 	return l, nil
 }
 
-func LocalForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct{}, error) {
+func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 
 	var stopChan = make(chan struct{}, 1)
 	var doneChan = make(chan struct{}, 1)
@@ -165,7 +165,7 @@ func LocalForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct
 		console.Exit(err)
 	}
 
-	console.Info("LocalForward", cfg.LocalAddress, "to", cfg.RemoteAddress)
+	console.Info("local forward", cfg.LocalAddress, "to", cfg.RemoteAddress)
 
 	var closeFn = func() {
 		if isStop {
@@ -180,7 +180,7 @@ func LocalForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct
 			_ = l.Close()
 		}
 
-		console.Info("Close LocalForward")
+		console.Info("close local forward")
 	}
 
 	go func() {
@@ -224,7 +224,7 @@ func LocalForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct
 
 	// --------
 
-	var proxyMode = tools.GetArgs([]string{"proxy", "--proxy"}, args)
+	var proxyMode = tools.GetArgs("--proxy")
 	switch proxyMode {
 	case "socks5":
 		// socks5 proxy
@@ -243,7 +243,7 @@ func LocalForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct
 
 	case "tcp":
 		// tcp proxy
-		var target = tools.GetArgs([]string{proxyMode}, args)
+		var target = tools.GetArgs("--target")
 		if target == "" {
 			console.Exit("target argument is required")
 		}
@@ -291,7 +291,7 @@ func LocalForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct
 				// Setup sshConn (type net.Conn)
 				sshConn, err := sshClientConn.Dial("tcp", cfg.RemoteAddress)
 				if err != nil {
-					console.Error("Dial RemoteAddr:", cfg.RemoteAddress, err)
+					console.Error("dial remote addr:", cfg.RemoteAddress, err)
 					return
 				}
 
@@ -322,7 +322,7 @@ func LocalForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct
 	return stopChan, doneChan, err
 }
 
-func RemoteForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struct{}, error) {
+func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 
 	var stopChan = make(chan struct{}, 1)
 	var doneChan = make(chan struct{}, 1)
@@ -359,7 +359,7 @@ func RemoteForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struc
 		console.Exit(err)
 	}
 
-	console.Info("RemoteForward", cfg.RemoteAddress, "to", cfg.LocalAddress)
+	console.Info("remote forward", cfg.RemoteAddress, "to", cfg.LocalAddress)
 
 	var closeFn = func() {
 		if isStop {
@@ -375,7 +375,7 @@ func RemoteForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struc
 			_ = l.Close()
 		}
 
-		console.Info("Close RemoteForward")
+		console.Info("close remote forward")
 	}
 
 	go func() {
@@ -419,7 +419,7 @@ func RemoteForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struc
 
 	// -----------
 
-	var proxyMode = tools.GetArgs([]string{"proxy", "--proxy"}, args)
+	var proxyMode = tools.GetArgs("--proxy")
 	switch proxyMode {
 	case "socks5":
 		// socks5 proxy
@@ -438,7 +438,7 @@ func RemoteForward(cfg ForwardConfig, args ...string) (chan struct{}, chan struc
 
 	case "tcp":
 		// tcp proxy
-		var target = tools.GetArgs([]string{proxyMode}, args)
+		var target = tools.GetArgs("--target")
 		if target == "" {
 			console.Exit("target argument is required")
 		}

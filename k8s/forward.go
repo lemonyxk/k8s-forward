@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
@@ -24,87 +26,107 @@ import (
 	"k8s.io/client-go/transport/spdy"
 )
 
-func ForwardServiceAll() {
-	for i := 0; i < len(app.Record.Services); i++ {
-		if app.Record.Services[i].StopForward == nil {
-			var service = app.Record.Services[i]
-			_, err := ForwardService(service)
-			if err != nil {
-				console.Error(err)
-				continue
-			}
-		}
+// func ForwardServiceAll() {
+// 	for i := 0; i < len(app.Record.Services); i++ {
+// 		if app.Record.Services[i].StopForward == nil {
+// 			var service = app.Record.Services[i]
+// 			_, err := ForwardService(service)
+// 			if err != nil {
+// 				console.Error(err)
+// 				continue
+// 			}
+// 		}
+// 	}
+// }
+//
+// func UnForwardServiceAll() {
+// 	for i := 0; i < len(app.Record.Services); i++ {
+// 		if app.Record.Services[i].StopForward != nil {
+// 			var service = app.Record.Services[i]
+// 			service.StopForward <- struct{}{}
+// 		}
+// 	}
+// }
+
+var mux sync.Mutex
+
+func ForwardService(service *config.Service) error {
+
+	mux.Lock()
+	defer mux.Unlock()
+
+	if service.ForwardNumber == int32(len(service.Pod)) {
+		return nil
 	}
-}
 
-func UnForwardServiceAll() {
-	for i := 0; i < len(app.Record.Services); i++ {
-		if app.Record.Services[i].StopForward != nil {
-			var service = app.Record.Services[i]
-			service.StopForward <- struct{}{}
-		}
-	}
-}
+	var group = sync.WaitGroup{}
 
-func ForwardService(service *config.Service) (chan struct{}, error) {
-
-	var ch = make(chan struct{}, 1)
+	group.Add(len(service.Pod))
 
 	var client = app.Client
 
-	if service.Pod == nil {
-		return nil, fmt.Errorf("service %s not found", service.Name)
+	if len(service.Pod) == 0 {
+		return fmt.Errorf("service %s not found", service.Name)
 	}
 
-	var pod = service.Pod
+	for i := 0; i < len(service.Pod); i++ {
 
-	req := client.CoreV1().RESTClient().Post().Namespace(service.Namespace).
-		Resource("pods").Name(pod.Name).SubResource(strings.ToLower("PortForward"))
+		var pod = service.Pod[i]
 
-	roundTripper, upgrade, err := spdy.RoundTripperFor(app.RestConfig)
-	if err != nil {
-		return nil, err
-	}
+		req := client.CoreV1().RESTClient().Post().Namespace(service.Namespace).
+			Resource("pods").Name(pod.Name).SubResource(strings.ToLower("PortForward"))
 
-	dialer := spdy.NewDialer(upgrade, &http.Client{Transport: roundTripper}, http.MethodPost, req.URL())
-
-	stopChan, readyChan := make(chan struct{}, 1), make(chan struct{}, 1)
-	out, errOut := new(bytes.Buffer), new(bytes.Buffer)
-
-	var ports = tools.GetServerPorts(service.Port)
-
-	var ip = []string{pod.IP}
-
-	forwarder, err := portforward.NewOnAddresses(dialer, ip, ports, stopChan, readyChan, out, errOut)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		<-readyChan
-
-		ch <- struct{}{}
-
-		service.Status = config.Start
-		service.StopForward = stopChan
-
-		console.Info("service forward:", service.Name, pod.IP, ports, "forward start")
-	}()
-
-	go func() {
-		if err = forwarder.ForwardPorts(); err != nil {
-			console.Error(err)
+		roundTripper, upgrade, err := spdy.RoundTripperFor(app.RestConfig)
+		if err != nil {
+			return err
 		}
 
-		console.Warning("service forward:", service.Name, pod.IP, ports, "forward stop")
+		dialer := spdy.NewDialer(upgrade, &http.Client{Transport: roundTripper}, http.MethodPost, req.URL())
 
-		service.Status = config.Stop
-	}()
+		stopChan, readyChan := make(chan struct{}, 1), make(chan struct{}, 1)
+		out, errOut := new(bytes.Buffer), new(bytes.Buffer)
 
-	return ch, nil
+		var ports = tools.GetServerPorts(service.Port)
+
+		var ip = []string{pod.IP}
+
+		forwarder, err := portforward.NewOnAddresses(dialer, ip, ports, stopChan, readyChan, out, errOut)
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			<-readyChan
+
+			atomic.AddInt32(&service.ForwardNumber, 1)
+
+			service.StopForward = append(service.StopForward, stopChan)
+
+			group.Done()
+
+			console.Warning("service forward:", service.Name, pod.IP, ports, "forward start")
+		}()
+
+		go func() {
+			if err = forwarder.ForwardPorts(); err != nil {
+				console.Error(err)
+			}
+
+			atomic.AddInt32(&service.ForwardNumber, -1)
+
+			console.Warning("service forward:", service.Name, pod.IP, ports, "forward stop")
+		}()
+	}
+
+	group.Wait()
+
+	return nil
 }
 
 func ForwardPod(namespace string, name string, ip []string, port []string) (chan struct{}, chan struct{}, error) {
+
+	mux.Lock()
+	defer mux.Unlock()
 
 	var ready = make(chan struct{}, 1)
 
@@ -133,7 +155,7 @@ func ForwardPod(namespace string, name string, ip []string, port []string) (chan
 
 		ready <- struct{}{}
 
-		console.Info("pod forward:", name, ip, port, "forward start")
+		console.Warning("pod forward:", name, ip, port, "forward start")
 	}()
 
 	go func() {
