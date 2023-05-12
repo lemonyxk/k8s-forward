@@ -147,6 +147,7 @@ func doRecover(resource string, namespace string, name string) string {
 			HostNetwork: pod[i].Spec.HostNetwork,
 			Age:         pod[i].CreationTimestamp.Time,
 			Restarts:    pod[i].Status.ContainerStatuses[0].RestartCount,
+			Phase:       pod[i].Status.Phase,
 		})
 	}
 

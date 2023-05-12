@@ -25,7 +25,7 @@ func Render() {
 	// render
 	var table = console.NewTable()
 
-	table.Header("NAMESPACE", "TYPE", "SERVICE NAME", "POD NAME", "AGE", "RESTARTS", "CLUSTER IP", "POD IP", "POD PORT")
+	table.Header("NAMESPACE", "SERVICE NAME", "POD NAME", "AGE", "RTS", "PHASE", "CLUSTER IP", "POD IP", "POD PORT")
 
 	var servicesMap = make(map[string][]*config.Service)
 	var servicesList [][]*config.Service
@@ -51,14 +51,14 @@ func Render() {
 
 				table.Row(
 					svc.Namespace,
-					svc.Type,
 					svc.Name,
 					pod.Name,
 					GetAge(pod.Age),
 					pod.Restarts,
+					pod.Phase,
 					svc.ClusterIP,
 					pod.IP,
-					strings.Join(utils.Extract.Src(svc.Port).Field("Port").String(), ","),
+					fmt.Sprintf("%-10s", svc.Type)+strings.Join(utils.Extract.Src(svc.Port).Field("Port").String(), ","),
 				)
 
 			}

@@ -134,7 +134,7 @@ func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 
 	var stop = make(chan struct{}, 1)
 	var isStop = false
-	var isClose = false
+	var exit = os.Args[1] == "ssh"
 
 	// Setup sshClientConn (type *ssh.ClientConn)
 
@@ -191,7 +191,6 @@ func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 				doneChan <- struct{}{}
 				return
 			case <-stopChan:
-				isClose = true
 				stop <- struct{}{}
 			}
 		}
@@ -212,8 +211,8 @@ func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 			}()
 			select {
 			case <-t.C:
-				if !isClose {
-					closeFn()
+				closeFn()
+				if exit {
 					console.Exit(err)
 				}
 			case <-ch:
@@ -234,7 +233,7 @@ func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 		}
 		go func() {
 			var err = Socks5(l)
-			if !isClose {
+			if exit {
 				console.Exit(err)
 			} else {
 				console.Error(err)
@@ -254,7 +253,7 @@ func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 		}
 		go func() {
 			var err = Tcp(l, target)
-			if !isClose {
+			if exit {
 				console.Exit(err)
 			} else {
 				console.Error(err)
@@ -269,7 +268,7 @@ func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 		}
 		go func() {
 			var err = Http(l)
-			if !isClose {
+			if exit {
 				console.Exit(err)
 			} else {
 				console.Error(err)
@@ -312,7 +311,7 @@ func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 			}()
 		}
 
-		if !isClose {
+		if exit {
 			console.Exit("localListener closed")
 		} else {
 			console.Error("localListener closed")
@@ -329,7 +328,7 @@ func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 
 	var stop = make(chan struct{}, 1)
 	var isStop = false
-	var isClose = false
+	var exit = os.Args[1] == "ssh"
 
 	// Setup sshClientConn (type *ssh.ClientConn)
 
@@ -386,7 +385,6 @@ func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 				doneChan <- struct{}{}
 				return
 			case <-stopChan:
-				isClose = true
 				stop <- struct{}{}
 			}
 		}
@@ -407,8 +405,8 @@ func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 			}()
 			select {
 			case <-t.C:
-				if !isClose {
-					closeFn()
+				closeFn()
+				if exit {
 					console.Exit(err)
 				}
 			case <-ch:
@@ -429,7 +427,7 @@ func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 		}
 		go func() {
 			var err = Socks5(l)
-			if !isClose {
+			if exit {
 				console.Exit(err)
 			} else {
 				console.Error(err)
@@ -449,7 +447,7 @@ func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 		}
 		go func() {
 			var err = Tcp(l, target)
-			if !isClose {
+			if exit {
 				console.Exit(err)
 			} else {
 				console.Error(err)
@@ -464,7 +462,7 @@ func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 		}
 		go func() {
 			var err = Http(l)
-			if !isClose {
+			if exit {
 				console.Exit(err)
 			} else {
 				console.Error(err)
@@ -507,7 +505,7 @@ func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 			}()
 		}
 
-		if !isClose {
+		if exit {
 			console.Exit("remoteListener closed")
 		} else {
 			console.Error("remoteListener closed")

@@ -67,6 +67,7 @@ func GetRecord(namespaces ...string) *config.Record {
 				HostNetwork: ps.Items[j].Spec.HostNetwork,
 				Age:         ps.Items[j].CreationTimestamp.Time,
 				Restarts:    ps.Items[j].Status.ContainerStatuses[0].RestartCount,
+				Phase:       ps.Items[j].Status.Phase,
 			})
 		}
 	}

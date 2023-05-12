@@ -146,6 +146,9 @@ func createDarwin(ip []string) {
 		if hasCreate[ip[i]] {
 			continue
 		}
+		if ip[i] == "" {
+			continue
+		}
 		var err = ExecCmd("ifconfig", "en0", "alias", ip[i], "netmask", "255.255.255.255", "up")
 		if err != nil {
 			console.Error("network: ip", ip[i], "create failed: ", err)
@@ -188,6 +191,9 @@ func deleteDarwin(ip []string) {
 	// sudo ifconfig en0 alias delete 192.168.0.100
 	for i := 0; i < len(ip); i++ {
 		if hasDelete[ip[i]] {
+			continue
+		}
+		if ip[i] == "" {
 			continue
 		}
 		var err = ExecCmd("ifconfig", "en0", "alias", "delete", ip[i])
