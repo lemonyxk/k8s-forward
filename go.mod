@@ -3,6 +3,7 @@ module github.com/lemonyxk/k8s-forward
 go 1.20
 
 require (
+	github.com/json-iterator/go v1.1.12
 	github.com/lemonyxk/console v0.0.0-20230423070636-b3637ac701dd
 	github.com/lemonyxk/exception v0.0.0-20220526113322-a27eb8cdffce
 	github.com/lemonyxk/promise v0.0.0-20220524105311-4bac06bf0095
@@ -35,7 +36,6 @@ require (
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/lemonyxk/caller v0.0.0-20230423070323-e226a04be497 // indirect
 	github.com/lemoyxk/caller v0.0.0-20210923041650-ed223e41b72c // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

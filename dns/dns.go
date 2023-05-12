@@ -399,7 +399,7 @@ func addNameServerDarwin(namespaces ...string) {
 	}
 
 	for j := 0; j < len(search); j++ {
-		var res = "domain " + search[j] + "\n" + "nameserver " + "127.0.0.1"
+		var res = "domain " + search[j] + "\n" + "nameserver " + "127.0.0.1" + "\n" + "port 10053"
 		err := utils.File.ReadFromString(res).WriteToPath(`/etc/resolver/` + search[j])
 		if err != nil {
 			console.Error("dns: domain", search[j], "create failed", err)
@@ -423,8 +423,8 @@ func addNameServerDarwin(namespaces ...string) {
 		var podName = domain[:len(domain)-1]
 		var res = tools.ReplaceString(
 			string(model),
-			[]string{"@domain", "@search", "@ip"},
-			[]string{podName, strings.Join(search, " "), "127.0.0.1"},
+			[]string{"@domain", "@search", "@ip", "@port"},
+			[]string{podName, strings.Join(search, " "), "127.0.0.1", "10053"},
 		)
 
 		var name = fmt.Sprintf("%s.svc.cluster.local", domain[:len(domain)-1])
@@ -482,7 +482,7 @@ func StartDNS(fn func()) {
 	dnsCache.init()
 	dnsBalance.init()
 	dnsNotFound.init()
-	srv := &dns.Server{Addr: "127.0.0.1:" + strconv.Itoa(53), Net: "udp"}
+	srv := &dns.Server{Addr: "127.0.0.1:" + strconv.Itoa(10053), Net: "udp"}
 	srv.Handler = &handler{}
 	srv.NotifyStartedFunc = func() {
 		fn()
