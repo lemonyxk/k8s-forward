@@ -118,7 +118,7 @@ func GenerateDeployment() (*v1.Deployment, error) {
 func GetServerPorts(serverPorts []v12.ServicePort) []string {
 	var ports []string
 	for i := 0; i < len(serverPorts); i++ {
-		ports = append(ports, fmt.Sprintf("%d:%d", serverPorts[i].Port, serverPorts[i].TargetPort))
+		ports = append(ports, fmt.Sprintf("%d:%s", serverPorts[i].Port, serverPorts[i].TargetPort.String()))
 	}
 	return ports
 }
