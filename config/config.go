@@ -73,4 +73,5 @@ type Pod struct {
 	Restarts    int32
 	Phase       v1.PodPhase
 	Containers  []v1.Container
+	Forwarded   bool
 }

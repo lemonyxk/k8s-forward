@@ -186,6 +186,8 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 		Containers:  pod.Spec.Containers,
 	}
 
+	service.Switch.Status = config.Start
+
 	net.CreateNetWorkByIp(service.Switch.Pod)
 
 	k8s.SaveRecordToFile(app.Record)

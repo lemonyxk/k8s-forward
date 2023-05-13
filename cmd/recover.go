@@ -138,6 +138,8 @@ func doRecover(resource string, namespace string, name string) string {
 		return err.Error()
 	}
 
+	service.Switch.Status = config.Stop
+
 	for i := 0; i < len(pod); i++ {
 		service.Pod = append(service.Pod, &config.Pod{
 			Namespace:   pod[i].Namespace,
