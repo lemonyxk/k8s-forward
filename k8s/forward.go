@@ -70,7 +70,6 @@ func ForwardService(service *config.Service) error {
 	}
 
 	for i := 0; i < len(service.Pod); i++ {
-
 		var pod = service.Pod[i]
 
 		req := client.CoreV1().RESTClient().Post().Namespace(service.Namespace).
@@ -95,8 +94,12 @@ func ForwardService(service *config.Service) error {
 			return err
 		}
 
+		var ok int32 = 0
+
 		go func() {
 			<-readyChan
+
+			atomic.AddInt32(&ok, 1)
 
 			atomic.AddInt32(&service.ForwardNumber, 1)
 
@@ -110,6 +113,11 @@ func ForwardService(service *config.Service) error {
 		go func() {
 			if err = forwarder.ForwardPorts(); err != nil {
 				console.Error(err)
+			}
+
+			if atomic.LoadInt32(&ok) == 0 {
+				group.Done()
+				return
 			}
 
 			atomic.AddInt32(&service.ForwardNumber, -1)
@@ -150,8 +158,12 @@ func ForwardPod(namespace string, name string, ip []string, port []string) (chan
 		return nil, nil, err
 	}
 
+	var ok int32 = 0
+
 	go func() {
 		<-readyChan
+
+		atomic.AddInt32(&ok, 1)
 
 		ready <- struct{}{}
 
@@ -163,8 +175,11 @@ func ForwardPod(namespace string, name string, ip []string, port []string) (chan
 			console.Error(err)
 		}
 
-		console.Warning("pod forward:", name, ip, port, "forward stop")
+		if atomic.LoadInt32(&ok) == 0 {
+			return
+		}
 
+		console.Warning("pod forward:", name, ip, port, "forward stop")
 	}()
 
 	return ready, stopChan, nil
