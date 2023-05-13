@@ -148,6 +148,7 @@ func doRecover(resource string, namespace string, name string) string {
 			Age:         pod[i].CreationTimestamp.Time,
 			Restarts:    pod[i].Status.ContainerStatuses[0].RestartCount,
 			Phase:       pod[i].Status.Phase,
+			Containers:  pod[i].Spec.Containers,
 		})
 	}
 

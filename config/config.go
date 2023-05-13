@@ -72,4 +72,5 @@ type Pod struct {
 	Age         time.Time
 	Restarts    int32
 	Phase       v1.PodPhase
+	Containers  []v1.Container
 }

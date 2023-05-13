@@ -183,6 +183,7 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 		Age:         pod.CreationTimestamp.Time,
 		Restarts:    pod.Status.ContainerStatuses[0].RestartCount,
 		Phase:       pod.Status.Phase,
+		Containers:  pod.Spec.Containers,
 	}
 
 	net.CreateNetWorkByIp(service.Switch.Pod)

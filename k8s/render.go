@@ -12,20 +12,19 @@ package k8s
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
-	"github.com/lemoyxk/utils"
+	"github.com/lemonyxk/k8s-forward/tools"
 )
 
 func Render() {
 	// render
 	var table = console.NewTable()
 
-	table.Header("NAMESPACE", "SERVICE NAME", "POD NAME", "AGE", "RTS", "PHASE", "CLUSTER IP", "POD IP", "POD PORT")
+	table.Header("NAMESPACE", "SERVICE NAME", "POD NAME", "AGE", "RTS", "PHASE", "CLUSTER IP", "POD IP", "TYPE", "PORT")
 
 	var servicesMap = make(map[string][]*config.Service)
 	var servicesList [][]*config.Service
@@ -58,9 +57,9 @@ func Render() {
 					pod.Phase,
 					svc.ClusterIP,
 					pod.IP,
-					fmt.Sprintf("%-10s", svc.Type)+strings.Join(utils.Extract.Src(svc.Port).Field("Port").String(), ","),
+					svc.Type,
+					tools.ServicePortToString(svc.Port),
 				)
-
 			}
 		}
 		if i != len(servicesList)-1 {

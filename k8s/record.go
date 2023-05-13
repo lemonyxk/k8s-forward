@@ -68,6 +68,7 @@ func GetRecord(namespaces ...string) *config.Record {
 				Age:         ps.Items[j].CreationTimestamp.Time,
 				Restarts:    ps.Items[j].Status.ContainerStatuses[0].RestartCount,
 				Phase:       ps.Items[j].Status.Phase,
+				Containers:  ps.Items[j].Spec.Containers,
 			})
 		}
 	}
