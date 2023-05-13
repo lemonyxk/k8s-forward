@@ -3,7 +3,7 @@
 *
 * @description:
 *
-* @author: lemo
+* @author: lemon
 *
 * @create: 2022-02-11 21:55
 **/
@@ -17,33 +17,33 @@ import (
 
 	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/ssh"
-	"github.com/lemonyxk/k8s-forward/tools"
+	"github.com/lemonyxk/k8s-forward/utils"
 	"golang.org/x/term"
 )
 
 func SSH() {
 
-	var local = tools.GetArgs("-l", "--local")
+	var local = utils.GetArgs("-l", "--local")
 	if local == "" {
 		console.Error("local addr is required")
 		return
 	}
 
-	var remote = tools.GetArgs("-r", "--remote")
+	var remote = utils.GetArgs("-r", "--remote")
 	if remote == "" {
 		console.Error("remote addr is required")
 		return
 	}
 
-	var server = tools.GetArgs("-s", "--server")
+	var server = utils.GetArgs("-s", "--server")
 	if server == "" {
 		console.Error("server addr is required")
 		return
 	}
 
-	var password = tools.GetArgs("-p", "--password")
-	var hasPassword = tools.HasArgs("-p", "--password")
-	var privateKey = tools.GetArgs("-k", "--key")
+	var password = utils.GetArgs("-p", "--password")
+	var hasPassword = utils.HasArgs("-p", "--password")
+	var privateKey = utils.GetArgs("-k", "--key")
 	if password == "" && hasPassword && privateKey == "" {
 		console.Infof("password: ")
 		var bts, err = term.ReadPassword(int(os.Stdin.Fd()))
@@ -55,10 +55,10 @@ func SSH() {
 	}
 
 	var mode string
-	if tools.HasArgs("-R") {
+	if utils.HasArgs("-R") {
 		mode = "-R"
 	}
-	if tools.HasArgs("-L") {
+	if utils.HasArgs("-L") {
 		mode = "-L"
 	}
 

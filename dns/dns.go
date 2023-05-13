@@ -15,7 +15,7 @@ import (
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
 	"github.com/lemonyxk/k8s-forward/k8s"
-	"github.com/lemonyxk/k8s-forward/tools"
+	utils2 "github.com/lemonyxk/k8s-forward/utils"
 	"github.com/lemoyxk/utils"
 	"github.com/miekg/dns"
 )
@@ -421,7 +421,7 @@ func addNameServerDarwin(namespaces ...string) {
 
 		var model, _ = app.Temp.ReadFile("temp/resolv.conf")
 		var podName = domain[:len(domain)-1]
-		var res = tools.ReplaceString(
+		var res = utils2.ReplaceString(
 			string(model),
 			[]string{"@domain", "@search", "@ip", "@port"},
 			[]string{podName, strings.Join(search, " "), "127.0.0.1", "10053"},

@@ -3,7 +3,7 @@
 *
 * @description:
 *
-* @author: lemo
+* @author: lemon
 *
 * @create: 2022-02-10 00:40
 **/
@@ -24,8 +24,8 @@ import (
 	"github.com/lemonyxk/k8s-forward/k8s"
 	"github.com/lemonyxk/k8s-forward/net"
 	"github.com/lemonyxk/k8s-forward/ssh"
-	"github.com/lemonyxk/k8s-forward/tools"
-	"github.com/lemoyxk/utils"
+	"github.com/lemonyxk/k8s-forward/utils"
+	utils2 "github.com/lemoyxk/utils"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -36,19 +36,19 @@ func Switch() string {
 	var resource = os.Args[2]
 	var name = os.Args[3]
 
-	var namespace = tools.GetArgs("--namespace", "-n")
+	var namespace = utils.GetArgs("--namespace", "-n")
 	if namespace == "" {
 		namespace = "default"
 	}
 
-	var image = tools.GetArgs("--image", "-i")
+	var image = utils.GetArgs("--image", "-i")
 	if image == "" {
 		image = `a1354243/root-ssh-server:latest`
 	}
 
 	var port = 0
 	var err error
-	var portStr = tools.GetArgs("-p", "--port")
+	var portStr = utils.GetArgs("-p", "--port")
 	if portStr != "" {
 		port, err = strconv.Atoi(portStr)
 		if err != nil {
@@ -115,12 +115,12 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 
 	console.Info("update service:", service.Name, "replicas:", us.Spec.Replicas)
 
-	deployment, err := tools.GenerateDeployment()
+	deployment, err := utils.GenerateDeployment()
 	if err != nil {
 		return err.Error()
 	}
 
-	deployment.ObjectMeta.Name = service.Name + "-" + utils.Rand.UUID()
+	deployment.ObjectMeta.Name = service.Name + "-" + utils2.Rand.UUID()
 	deployment.ObjectMeta.Namespace = service.Namespace
 	deployment.ObjectMeta.Labels = service.Selector
 	deployment.Spec.Template.ObjectMeta.Labels = service.Selector
@@ -203,7 +203,7 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 
 	// ssh
 	var remoteAddr = fmt.Sprintf("%s:%d", pod.Status.PodIP, service.Port[0].Port)
-	var localAddr = fmt.Sprintf("%s:%d", "127.0.0.1", utils.Ternary.Int(port == 0, int(service.Port[0].Port), port))
+	var localAddr = fmt.Sprintf("%s:%d", "127.0.0.1", utils2.Ternary.Int(port == 0, int(service.Port[0].Port), port))
 	stopSSH, _, err := ssh.RemoteForward(ssh.ForwardConfig{
 		UserName:          "root",
 		Password:          "root",

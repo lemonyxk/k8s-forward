@@ -3,7 +3,7 @@
 *
 * @description:
 *
-* @author: lemo
+* @author: lemon
 *
 * @create: 2022-02-08 22:44
 **/
@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/lemonyxk/console"
-	"github.com/lemonyxk/k8s-forward/tools"
+	"github.com/lemonyxk/k8s-forward/utils"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -223,7 +223,7 @@ func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 
 	// --------
 
-	var proxyMode = tools.GetArgs("--proxy")
+	var proxyMode = utils.GetArgs("--proxy")
 	switch proxyMode {
 	case "socks5":
 		// socks5 proxy
@@ -242,7 +242,7 @@ func LocalForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 
 	case "tcp":
 		// tcp proxy
-		var target = tools.GetArgs("--target")
+		var target = utils.GetArgs("--target")
 		if target == "" {
 			console.Exit("target argument is required")
 		}
@@ -417,7 +417,7 @@ func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 
 	// -----------
 
-	var proxyMode = tools.GetArgs("--proxy")
+	var proxyMode = utils.GetArgs("--proxy")
 	switch proxyMode {
 	case "socks5":
 		// socks5 proxy
@@ -436,7 +436,7 @@ func RemoteForward(cfg ForwardConfig) (chan struct{}, chan struct{}, error) {
 
 	case "tcp":
 		// tcp proxy
-		var target = tools.GetArgs("--target")
+		var target = utils.GetArgs("--target")
 		if target == "" {
 			console.Exit("target argument is required")
 		}

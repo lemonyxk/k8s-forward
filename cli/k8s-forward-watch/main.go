@@ -3,7 +3,7 @@
 *
 * @description:
 *
-* @author: lemo
+* @author: lemon
 *
 * @create: 2022-09-04 14:40
 **/
@@ -17,17 +17,17 @@ import (
 	"time"
 
 	"github.com/lemonyxk/console"
-	"github.com/lemonyxk/k8s-forward/tools"
-	"github.com/lemoyxk/utils"
+	"github.com/lemonyxk/k8s-forward/utils"
+	utils2 "github.com/lemoyxk/utils"
 )
 
 func main() {
 
+	console.DefaultLogger.Flags = console.TIME | console.FILE
 	console.DefaultLogger.InfoColor = console.FgGreen
-
 	console.DefaultLogger.Colorful = true
 
-	var reconnect = tools.HasArgs("--reconnect")
+	var reconnect = utils.HasArgs("--reconnect")
 
 	var reconnectTimes = -1
 
@@ -75,7 +75,7 @@ func Run() error {
 }
 
 func Kill(pid int) {
-	var err = utils.Signal.KillGroup(pid, syscall.SIGKILL)
+	var err = utils2.Signal.KillGroup(pid, syscall.SIGKILL)
 	if err != nil {
 		console.Error(err)
 	}

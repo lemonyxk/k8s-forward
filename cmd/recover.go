@@ -3,7 +3,7 @@
 *
 * @description:
 *
-* @author: lemo
+* @author: lemon
 *
 * @create: 2022-02-12 22:55
 **/
@@ -21,7 +21,7 @@ import (
 	"github.com/lemonyxk/k8s-forward/config"
 	"github.com/lemonyxk/k8s-forward/k8s"
 	"github.com/lemonyxk/k8s-forward/net"
-	"github.com/lemonyxk/k8s-forward/tools"
+	"github.com/lemonyxk/k8s-forward/utils"
 	v12 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -31,7 +31,7 @@ func Recover() string {
 	var resource = os.Args[2]
 	var name = os.Args[3]
 
-	var namespace = tools.GetArgs("--namespace", "-n")
+	var namespace = utils.GetArgs("--namespace", "-n")
 	if namespace == "" {
 		namespace = "default"
 	}

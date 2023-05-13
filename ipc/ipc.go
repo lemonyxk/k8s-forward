@@ -3,7 +3,7 @@
 *
 * @description:
 *
-* @author: lemo
+* @author: lemon
 *
 * @create: 2022-02-10 00:29
 **/
@@ -17,7 +17,6 @@ import (
 	"sync/atomic"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/lemonyxk/console"
 )
 
 var CallBack func([]string) string
@@ -34,12 +33,15 @@ func handler(writer http.ResponseWriter, request *http.Request) {
 
 	var bts, err = io.ReadAll(request.Body)
 	if err != nil {
-		console.Exit(err)
+		println(err.Error())
+		return
 	}
 
 	var args []string
-	if err = jsoniter.Unmarshal(bts, &args); err != nil {
-		console.Exit(err)
+	err = jsoniter.Unmarshal(bts, &args)
+	if err != nil {
+		println(err.Error())
+		return
 	}
 
 	var res = CallBack(args)
@@ -52,7 +54,7 @@ func Open() {
 		http.HandleFunc("/", handler)
 		err := http.ListenAndServe("0.0.0.0:29292", nil)
 		if err != nil {
-			console.Exit(err)
+			println(err.Error())
 		}
 	}()
 }
@@ -62,20 +64,23 @@ func Close() {}
 func Write(args []string) {
 	bts, err := jsoniter.Marshal(args)
 	if err != nil {
-		console.Exit(err)
+		println(err.Error())
+		return
 	}
 
 	res, err := http.Post("http://127.0.0.1:29292", "application/json", bytes.NewReader(bts))
 	if err != nil {
-		console.Exit("please run `k8s-forward connect` first")
+		println("please run `k8s-forward connect` first")
+		return
 	}
 
 	defer func() { _ = res.Body.Close() }()
 
 	bts, err = io.ReadAll(res.Body)
 	if err != nil {
-		console.Exit(err)
+		println(err.Error())
+		return
 	}
 
-	console.Info(string(bts))
+	println(string(bts))
 }

@@ -3,7 +3,7 @@
 *
 * @description:
 *
-* @author: lemo
+* @author: lemon
 *
 * @create: 2022-02-08 17:22
 **/
@@ -17,7 +17,7 @@ import (
 	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
-	"github.com/lemonyxk/k8s-forward/tools"
+	"github.com/lemonyxk/k8s-forward/utils"
 	"github.com/olekukonko/ts"
 )
 
@@ -72,7 +72,7 @@ func renderSmall() {
 					svc.ClusterIP,
 					pod.IP,
 					svc.Type,
-					tools.ServicePortToString(svc.Port),
+					utils.ServicePortToString(svc.Port),
 				)
 			}
 		}
@@ -121,7 +121,7 @@ func renderBig() {
 					svc.ClusterIP,
 					pod.IP,
 					svc.Type,
-					tools.ServicePortToString(svc.Port),
+					utils.ServicePortToString(svc.Port),
 				)
 			}
 		}

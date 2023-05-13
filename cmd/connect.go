@@ -3,7 +3,7 @@
 *
 * @description:
 *
-* @author: lemo
+* @author: lemon
 *
 * @create: 2022-02-09 16:24
 **/
@@ -19,15 +19,15 @@ import (
 	"github.com/lemonyxk/k8s-forward/ipc"
 	"github.com/lemonyxk/k8s-forward/k8s"
 	"github.com/lemonyxk/k8s-forward/net"
-	"github.com/lemonyxk/k8s-forward/tools"
+	"github.com/lemonyxk/k8s-forward/utils"
 	"github.com/lemonyxk/promise"
-	"github.com/lemoyxk/utils"
+	utils2 "github.com/lemoyxk/utils"
 )
 
 func Connect() {
 	console.Info("start k8s-forward...")
 
-	var namespaces = tools.GetMultiArgs("--namespace", "-n")
+	var namespaces = utils.GetMultiArgs("--namespace", "-n")
 	if len(namespaces) == 0 {
 		namespaces = []string{"default"}
 	}
@@ -69,7 +69,7 @@ func Connect() {
 
 	k8s.Render()
 
-	utils.Signal.ListenKill().Done(func(sig os.Signal) {
+	utils2.Signal.ListenKill().Done(func(sig os.Signal) {
 		console.Warning("cleaning k8s-forward...")
 		Clean(app.Record)
 		console.Warning("k8s-forward down")

@@ -3,7 +3,7 @@
 *
 * @description:
 *
-* @author: lemo
+* @author: lemon
 *
 * @create: 2022-02-08 19:49
 **/
@@ -21,7 +21,7 @@ import (
 	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/config"
-	"github.com/lemonyxk/k8s-forward/tools"
+	"github.com/lemonyxk/k8s-forward/utils"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 )
@@ -90,7 +90,7 @@ func ForwardService(service *config.Service) error {
 		stopChan, readyChan := make(chan struct{}, 1), make(chan struct{}, 1)
 		out, errOut := new(bytes.Buffer), new(bytes.Buffer)
 
-		var ports = tools.GetServerPorts(service.Port)
+		var ports = utils.GetServerPorts(service.Port)
 
 		var ip = []string{pod.IP}
 
