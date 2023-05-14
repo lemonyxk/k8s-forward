@@ -131,6 +131,8 @@ func (w *Watcher) Run() {
 						go w.OnAdd(pod)
 					case watch2.Modified:
 						go w.OnUpdate(pod)
+					case watch2.Error:
+						console.Error("watch error:", event.Type, pod.Namespace, pod.Name, pod.Status.Phase)
 					default:
 
 					}
