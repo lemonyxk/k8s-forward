@@ -8,7 +8,7 @@
 * @create: 2022-02-08 18:18
 **/
 
-package net
+package app
 
 import (
 	"net/url"
@@ -17,13 +17,13 @@ import (
 	"runtime"
 
 	"github.com/lemonyxk/console"
-	"github.com/lemonyxk/k8s-forward/app"
-	"github.com/lemonyxk/k8s-forward/config"
+	"github.com/lemonyxk/k8s-forward/services"
 	"github.com/lemoyxk/utils"
+	v1 "k8s.io/api/core/v1"
 )
 
-func CreateNetWorkByIp(pod *config.Pod) {
-	if IsLocal() && pod.HostNetwork {
+func CreateNetWorkByPod(pod *v1.Pod) {
+	if IsLocal() && pod.Spec.HostNetwork {
 		return
 	}
 
@@ -31,7 +31,7 @@ func CreateNetWorkByIp(pod *config.Pod) {
 	case "linux":
 		console.Exit("not support linux")
 	case "darwin":
-		createDarwin([]string{pod.IP})
+		createDarwin(pod.Status.PodIP)
 	default:
 		console.Exit("not support windows")
 	}
@@ -43,7 +43,7 @@ func IsLocal() bool {
 	if isLocal != nil {
 		return *isLocal
 	}
-	var appHost = app.RestConfig.Host
+	var appHost = RestConfig.Host
 	u, err := url.Parse(appHost)
 	if err != nil {
 		panic(err)
@@ -53,65 +53,35 @@ func IsLocal() bool {
 	return *isLocal
 }
 
-func CreateNetWork(record *config.Record) {
+func CreateNetWork(svs *services.Services) {
+	var ips []string
 
-	var ip []string
+	var history = svs.History()
 
-	for i := 0; i < len(record.Services); i++ {
-
-		if record.Services[i].Switch != nil {
-			if !IsLocal() || !record.Services[i].Switch.Pod.HostNetwork {
-				ip = append(ip, record.Services[i].Switch.Pod.IP)
-			}
+	for i := 0; i < len(history); i++ {
+		if !IsLocal() || !history[i].HostNetwork {
+			ips = append(ips, history[i].IP)
 		}
-
-		if len(record.Services[i].Pod) == 0 {
-			continue
-		}
-
-		for j := 0; j < len(record.Services[i].Pod); j++ {
-			if !IsLocal() || !record.Services[i].Pod[j].HostNetwork {
-				ip = append(ip, record.Services[i].Pod[j].IP)
-			}
-		}
-
 	}
 
 	switch runtime.GOOS {
 	case "linux":
 		console.Exit("not support linux")
 	case "darwin":
-		createDarwin(ip)
+		createDarwin(ips...)
 	default:
 		console.Exit("not support windows")
 	}
 }
 
-func DeleteNetWork(record *config.Record) {
-	var ip []string
+func DeleteNetWork(svs *services.Services) {
+	var ips []string
 
-	for i := 0; i < len(record.Services); i++ {
+	var history = svs.History()
 
-		if record.Services[i].Switch != nil {
-			if !IsLocal() || !record.Services[i].Switch.Pod.HostNetwork {
-				ip = append(ip, record.Services[i].Switch.Pod.IP)
-			}
-		}
-
-		if len(record.Services[i].Pod) == 0 {
-			continue
-		}
-
-		for j := 0; j < len(record.Services[i].Pod); j++ {
-			if !IsLocal() || !record.Services[i].Pod[j].HostNetwork {
-				ip = append(ip, record.Services[i].Pod[j].IP)
-			}
-		}
-	}
-
-	for i := 0; i < len(record.History); i++ {
-		if !IsLocal() || !record.History[i].HostNetwork {
-			ip = append(ip, record.History[i].IP)
+	for i := 0; i < len(history); i++ {
+		if !IsLocal() || !history[i].HostNetwork {
+			ips = append(ips, history[i].IP)
 		}
 	}
 
@@ -119,7 +89,7 @@ func DeleteNetWork(record *config.Record) {
 	case "linux":
 		console.Exit("not support linux")
 	case "darwin":
-		deleteDarwin(ip)
+		deleteDarwin(ips...)
 	default:
 		console.Exit("not support windows")
 	}
@@ -139,21 +109,21 @@ func DeleteNetWork(record *config.Record) {
 // 	}
 // }
 
-func createDarwin(ip []string) {
+func createDarwin(ips ...string) {
 	var hasCreate = make(map[string]bool)
 	// sudo ifconfig en0 alias 192.168.0.100 netmask 255.255.255.0 up
-	for i := 0; i < len(ip); i++ {
-		if hasCreate[ip[i]] {
+	for i := 0; i < len(ips); i++ {
+		if hasCreate[ips[i]] {
 			continue
 		}
-		if ip[i] == "" {
+		if ips[i] == "" {
 			continue
 		}
-		var err = ExecCmd("ifconfig", "en0", "alias", ip[i], "netmask", "255.255.255.255", "up")
+		var err = ExecCmd("ifconfig", "en0", "alias", ips[i], "netmask", "255.255.255.255", "up")
 		if err != nil {
-			console.Error("network: ip", ip[i], "create failed: ", err)
+			console.Error("network: ip", ips[i], "create failed: ", err)
 		} else {
-			hasCreate[ip[i]] = true
+			hasCreate[ips[i]] = true
 			// console.Info("network: ip", ip[i], "create success")
 		}
 	}
@@ -186,21 +156,21 @@ func createDarwin(ip []string) {
 // 	}
 // }
 
-func deleteDarwin(ip []string) {
+func deleteDarwin(ips ...string) {
 	var hasDelete = make(map[string]bool)
 	// sudo ifconfig en0 alias delete 192.168.0.100
-	for i := 0; i < len(ip); i++ {
-		if hasDelete[ip[i]] {
+	for i := 0; i < len(ips); i++ {
+		if hasDelete[ips[i]] {
 			continue
 		}
-		if ip[i] == "" {
+		if ips[i] == "" {
 			continue
 		}
-		var err = ExecCmd("ifconfig", "en0", "alias", "delete", ip[i])
+		var err = ExecCmd("ifconfig", "en0", "alias", "delete", ips[i])
 		if err != nil {
-			console.Error("network: ip", ip[i], "delete failed: ", err)
+			console.Error("network: ip", ips[i], "delete failed: ", err)
 		} else {
-			hasDelete[ip[i]] = true
+			hasDelete[ips[i]] = true
 			// console.Warning("network: ip", ip[i], "delete success")
 		}
 	}

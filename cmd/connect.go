@@ -18,7 +18,7 @@ import (
 	"github.com/lemonyxk/k8s-forward/dns"
 	"github.com/lemonyxk/k8s-forward/ipc"
 	"github.com/lemonyxk/k8s-forward/k8s"
-	"github.com/lemonyxk/k8s-forward/net"
+	"github.com/lemonyxk/k8s-forward/services"
 	"github.com/lemonyxk/k8s-forward/utils"
 	"github.com/lemonyxk/promise"
 	utils2 "github.com/lemoyxk/utils"
@@ -26,6 +26,11 @@ import (
 
 func Connect() {
 	console.Info("start k8s-forward...")
+
+	// file exists
+	if !utils2.File.IsExist(app.Config.HomePath) {
+		Clean(app.LoadAllServices())
+	}
 
 	var namespaces = utils.GetMultiArgs("--namespace", "-n")
 	if len(namespaces) == 0 {
@@ -36,19 +41,21 @@ func Connect() {
 
 	app.Client = k8s.NewClient()
 
-	app.Record = k8s.GetRecord(namespaces...)
+	app.Services = services.NewServices(namespaces...)
 
-	k8s.SaveRecordToFile(app.Record)
-
-	app.DnsDomain = dns.GetDNSDomain()
+	app.Load(namespaces...)
 
 	ipc.Open()
 
 	ipc.CallBack = Default
 
+	app.Watch = app.NewWatcher(namespaces...)
+
+	app.Watch.Run()
+
 	var p1 = promise.New(func(resolve func(int), reject func(error)) {
-		dns.AddNameServer(app.Record)
-		net.CreateNetWork(app.Record)
+		dns.AddNameServer(app.Services)
+		app.CreateNetWork(app.Services)
 		resolve(0)
 	})
 
@@ -71,7 +78,7 @@ func Connect() {
 
 	utils2.Signal.ListenKill().Done(func(sig os.Signal) {
 		console.Warning("cleaning k8s-forward...")
-		Clean(app.Record)
+		Clean(app.Services)
 		console.Warning("k8s-forward down")
 	})
 }

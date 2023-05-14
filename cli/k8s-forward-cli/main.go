@@ -47,18 +47,19 @@ func main() {
 	Init()
 
 	var home = homedir.HomeDir()
-
 	exception.Assert.True(home != "")
 
 	var kubePath = utils.GetArgs("-kube", "--kubeconfig")
 	var homePath = filepath.Join(home, ".k8s-forward")
-	var recordPath = filepath.Join(homePath, "record.json")
 
 	if kubePath == "" {
 		kubePath = filepath.Join(home, ".kube", "config")
 	}
 
-	app.Config = &config.Config{KubePath: kubePath, RecordPath: recordPath, HomePath: homePath}
+	var err = os.MkdirAll(homePath, 0755)
+	exception.Assert.True(err == nil)
+
+	app.Config = &config.Config{KubePath: kubePath, HomePath: homePath}
 
 	if len(os.Args) < 2 {
 		console.Info(cmd.Help())

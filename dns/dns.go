@@ -13,8 +13,8 @@ import (
 
 	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
-	"github.com/lemonyxk/k8s-forward/config"
 	"github.com/lemonyxk/k8s-forward/k8s"
+	"github.com/lemonyxk/k8s-forward/services"
 	utils2 "github.com/lemonyxk/k8s-forward/utils"
 	"github.com/lemoyxk/utils"
 	"github.com/miekg/dns"
@@ -135,7 +135,7 @@ func (t *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	var service *config.Service
+	var service *services.Service
 	var ok bool
 	var headless bool
 	var name = domain
@@ -143,78 +143,83 @@ func (t *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var domainLen = len(domainSplit)
 	switch domainLen {
 	case 3:
-		service, ok = app.DnsDomain[name]
-		if !ok {
-			service, ok = app.DnsDomain[domainSplit[1]+".default."]
-			if ok && service.ClusterIP == "None" {
+		service = app.Services.Get(domainSplit[1], domainSplit[0])
+		ok = service != nil
+		if service == nil {
+			service = app.Services.Get(domainSplit[1], "default")
+			ok = service != nil
+			if service != nil && service.ClusterIP == "None" {
 				ok = false
-				for i := 0; i < len(service.Pod); i++ {
-					if service.Pod[i].Name == domainSplit[0] {
+				service.Pods.Range(func(name string, pod *services.Pod) bool {
+					if name == domainSplit[0] {
 						ok = true
 						headless = true
-						break
+						return false
 					}
-				}
+					return true
+				})
 			} else {
 				ok = false
 			}
 		}
-
 	case 4:
 		if strings.HasSuffix(domain, ".svc.") {
-			name = domainSplit[0] + "." + domainSplit[1] + "."
-			service, ok = app.DnsDomain[name]
+			service = app.Services.Get(domainSplit[1], domainSplit[0])
+			ok = service != nil
 		} else {
-			name = domainSplit[1] + "." + domainSplit[2] + "."
-			service, ok = app.DnsDomain[name]
-			if ok && service.ClusterIP == "None" {
+			service = app.Services.Get(domainSplit[2], domainSplit[1])
+			ok = service != nil
+			if service != nil && service.ClusterIP == "None" {
 				ok = false
-				for i := 0; i < len(service.Pod); i++ {
-					if service.Pod[i].Name == domainSplit[0] {
+				service.Pods.Range(func(name string, pod *services.Pod) bool {
+					if name == domainSplit[0] {
 						ok = true
 						headless = true
-						break
+						return false
 					}
-				}
+					return true
+				})
 			} else {
 				ok = false
 			}
 		}
 	case 5:
 		if strings.HasSuffix(domain, ".svc.") {
-			name = domainSplit[1] + "." + domainSplit[2] + "."
-			service, ok = app.DnsDomain[name]
-			if ok && service.ClusterIP == "None" {
+			service = app.Services.Get(domainSplit[2], domainSplit[1])
+			ok = service != nil
+			if service != nil && service.ClusterIP == "None" {
 				ok = false
-				for i := 0; i < len(service.Pod); i++ {
-					if service.Pod[i].Name == domainSplit[0] {
+				service.Pods.Range(func(name string, pod *services.Pod) bool {
+					if name == domainSplit[0] {
 						ok = true
 						headless = true
-						break
+						return false
 					}
-				}
+					return true
+				})
 			} else {
 				ok = false
 			}
 		}
 	case 6:
 		if strings.HasSuffix(domain, ".svc.cluster.local.") {
-			name = domainSplit[0] + "." + domainSplit[1] + "."
-			service, ok = app.DnsDomain[name]
+			service = app.Services.Get(domainSplit[1], domainSplit[0])
+			ok = service != nil
 		}
 	case 7:
 		if strings.HasSuffix(domain, ".svc.cluster.local.") {
-			name = domainSplit[1] + "." + domainSplit[2] + "."
-			service, ok = app.DnsDomain[name]
-			if ok && service.ClusterIP == "None" {
+			service = app.Services.Get(domainSplit[2], domainSplit[1])
+			ok = service != nil
+			if service != nil && service.ClusterIP == "None" {
 				ok = false
-				for i := 0; i < len(service.Pod); i++ {
-					if service.Pod[i].Name == domainSplit[0] {
+				service.Pods.Range(func(name string, pod *services.Pod) bool {
+					if name == domainSplit[0] {
 						ok = true
 						headless = true
-						break
+						return false
 					}
-				}
+					return true
+				})
 			} else {
 				ok = false
 			}
@@ -223,7 +228,7 @@ func (t *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		ok = false
 	}
 
-	if ok {
+	if ok && service != nil {
 		if service.ForwardNumber == 0 && service.Switch == nil {
 			var err = k8s.ForwardService(service)
 			if err != nil {
@@ -233,22 +238,22 @@ func (t *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 		var ips []string
 
-		if len(service.Pod) != 0 {
-			for i := 0; i < len(service.Pod); i++ {
-				if headless {
-					if service.Pod[i].Name == domainSplit[0] {
-						ips = []string{service.Pod[i].IP}
-						break
-					}
-				} else {
-					ips = append(ips, service.Pod[i].IP)
+		service.Pods.Range(func(name string, pod *services.Pod) bool {
+			if headless {
+				if name == domainSplit[0] {
+					ips = []string{pod.IP}
+					return false
 				}
+			} else {
+				ips = append(ips, pod.IP)
 			}
 
-			if !headless {
-				var index = dnsBalance.Inc(name) % len(ips)
-				ips[0], ips[index] = ips[index], ips[0]
-			}
+			return true
+		})
+
+		if !headless && len(ips) > 1 {
+			var index = dnsBalance.Inc(name) % len(ips)
+			ips[0], ips[index] = ips[index], ips[0]
 		}
 
 		if service.Switch != nil {
@@ -345,13 +350,13 @@ func doHandler(w dns.ResponseWriter, domain string, ip []string, msg *dns.Msg, s
 	}
 }
 
-func AddNameServer(record *config.Record) {
+func AddNameServer(svs *services.Services) {
 	switch runtime.GOOS {
 	case "linux":
 		console.Exit("not support linux")
 	case "darwin":
 		GetDefaultNDS()
-		addNameServerDarwin(record.Namespaces...)
+		addNameServerDarwin(svs)
 	default:
 		console.Exit("not support windows")
 	}
@@ -389,7 +394,7 @@ func GetDefaultNDS() {
 	}
 }
 
-func addNameServerDarwin(namespaces ...string) {
+func addNameServerDarwin(svs *services.Services) {
 
 	_ = os.Mkdir("/etc/resolver", 0777)
 
@@ -408,7 +413,7 @@ func addNameServerDarwin(namespaces ...string) {
 		}
 	}
 
-	for domain, service := range app.DnsDomain {
+	svs.Range(func(name string, service *services.Service) bool {
 		var search = []string{
 			"svc",
 			"svc.cluster.local",
@@ -420,36 +425,37 @@ func addNameServerDarwin(namespaces ...string) {
 		}
 
 		var model, _ = app.Temp.ReadFile("temp/resolv.conf")
-		var podName = domain[:len(domain)-1]
 		var res = utils2.ReplaceString(
 			string(model),
 			[]string{"@domain", "@search", "@ip", "@port"},
-			[]string{podName, strings.Join(search, " "), "127.0.0.1", "10053"},
+			[]string{name, strings.Join(search, " "), "127.0.0.1", "10053"},
 		)
 
-		var name = fmt.Sprintf("%s.svc.cluster.local", domain[:len(domain)-1])
+		var domain = fmt.Sprintf("%s.svc.cluster.local", name)
 
-		err := utils.File.ReadFromString(res).WriteToPath(`/etc/resolver/` + name)
+		err := utils.File.ReadFromString(res).WriteToPath(`/etc/resolver/` + domain)
 		if err != nil {
-			console.Error("dns: domain", name, "create failed", err)
+			console.Error("dns: domain", domain, "create failed", err)
 		} else {
 			// console.Info("dns: domain", domain, "create success")
 		}
-	}
+
+		return true
+	})
 }
 
-func DeleteNameServer(record *config.Record) {
+func DeleteNameServer(svs *services.Services) {
 	switch runtime.GOOS {
 	case "linux":
 		console.Exit("not support linux")
 	case "darwin":
-		deleteNameServerDarwin(record.Namespaces...)
+		deleteNameServerDarwin(svs)
 	default:
 		console.Exit("not support windows")
 	}
 }
 
-func deleteNameServerDarwin(namespaces ...string) {
+func deleteNameServerDarwin(svs *services.Services) {
 
 	var search = []string{
 		"svc",
@@ -465,16 +471,16 @@ func deleteNameServerDarwin(namespaces ...string) {
 		}
 	}
 
-	for domain := range app.DnsDomain {
-		var name = fmt.Sprintf("%s.svc.cluster.local", domain[:len(domain)-1])
-
-		var err = os.RemoveAll(`/etc/resolver/` + name)
+	svs.Range(func(name string, service *services.Service) bool {
+		var domain = fmt.Sprintf("%s.svc.cluster.local", name)
+		var err = os.RemoveAll(`/etc/resolver/` + domain)
 		if err != nil {
-			console.Error("dns: domain", name, "delete failed", err)
+			console.Error("dns: domain", domain, "delete failed", err)
 		} else {
 			// console.Warning("dns: domain", domain, "delete success")
 		}
-	}
+		return true
+	})
 }
 
 // StartDNS starts a DNS server on the given port.

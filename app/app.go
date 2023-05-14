@@ -14,7 +14,8 @@ import (
 	"embed"
 
 	"github.com/lemonyxk/k8s-forward/config"
-	"github.com/lemonyxk/k8s-forward/manager"
+	"github.com/lemonyxk/k8s-forward/services"
+	"github.com/lemonyxk/k8s-forward/utils"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -22,14 +23,14 @@ import (
 //go:embed temp
 var Temp embed.FS
 
-var Config *config.Config
+var SSHForwardKey = utils.RandomString(12)
 
-var Record *config.Record
+var Config *config.Config
 
 var RestConfig *rest.Config
 
-var DnsDomain = make(map[string]*config.Service)
+var Services *services.Services
 
 var Client *kubernetes.Clientset
 
-var Manager *manager.Manager
+var Watch *Watcher

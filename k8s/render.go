@@ -16,10 +16,15 @@ import (
 
 	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
-	"github.com/lemonyxk/k8s-forward/config"
+	"github.com/lemonyxk/k8s-forward/services"
 	"github.com/lemonyxk/k8s-forward/utils"
 	"github.com/olekukonko/ts"
 )
+
+type Box struct {
+	Pod *services.Pod
+	Svc *services.Service
+}
 
 func Render() {
 	// render
@@ -30,7 +35,7 @@ func Render() {
 		console.Exit(err)
 	}
 
-	console.Info(fmt.Sprintf("terminal size: %d x %d", size.Col(), size.Row()))
+	// console.Info(size.Col(), size.Row())
 
 	if size.Col() < 180 {
 		renderSmall()
@@ -44,39 +49,34 @@ func renderSmall() {
 
 	table.Header("SERVICE NAME", "POD NAME", "CLUSTER IP", "POD IP", "TYPE", "PORT")
 
-	var servicesMap = make(map[string][]*config.Service)
-	var servicesList [][]*config.Service
+	var boxes = make(map[string][]*Box)
 
-	for i := 0; i < len(app.Record.Services); i++ {
-		if len(app.Record.Services[i].Pod) == 0 {
-			continue
+	app.Services.Range(func(name string, service *services.Service) bool {
+		service.Pods.Range(func(name string, pod *services.Pod) bool {
+			boxes[service.Namespace] = append(boxes[service.Namespace], &Box{Svc: service, Pod: pod})
+			return true
+		})
+		return true
+	})
+
+	var index = 0
+
+	for namespace := range boxes {
+		for i := 0; i < len(boxes[namespace]); i++ {
+			var box = boxes[namespace][i]
+			table.Row(
+				box.Svc.Name,
+				box.Pod.Name,
+				box.Svc.ClusterIP,
+				box.Pod.IP,
+				box.Svc.Type,
+				utils.ServicePortToString(box.Svc.Port),
+			)
 		}
 
-		servicesMap[app.Record.Services[i].Namespace] =
-			append(servicesMap[app.Record.Services[i].Namespace], app.Record.Services[i])
-	}
+		index++
 
-	for namespace := range servicesMap {
-		servicesList = append(servicesList, servicesMap[namespace])
-	}
-
-	for i := 0; i < len(servicesList); i++ {
-		for j := 0; j < len(servicesList[i]); j++ {
-			for k := 0; k < len(servicesList[i][j].Pod); k++ {
-				var svc = servicesList[i][j]
-				var pod = svc.Pod[k]
-
-				table.Row(
-					svc.Name,
-					pod.Name,
-					svc.ClusterIP,
-					pod.IP,
-					svc.Type,
-					utils.ServicePortToString(svc.Port),
-				)
-			}
-		}
-		if i != len(servicesList)-1 {
+		if index != len(boxes) {
 			table.Row("-", "-", "-", "-", "-", "-")
 		}
 	}
@@ -89,44 +89,39 @@ func renderBig() {
 
 	table.Header("NAMESPACE", "SERVICE NAME", "POD NAME", "AGE", "RTS", "PHASE", "CLUSTER IP", "POD IP", "TYPE", "PORT")
 
-	var servicesMap = make(map[string][]*config.Service)
-	var servicesList [][]*config.Service
+	var boxes = make(map[string][]*Box)
 
-	for i := 0; i < len(app.Record.Services); i++ {
-		if len(app.Record.Services[i].Pod) == 0 {
-			continue
+	app.Services.Range(func(name string, service *services.Service) bool {
+		service.Pods.Range(func(name string, pod *services.Pod) bool {
+			boxes[service.Namespace] = append(boxes[service.Namespace], &Box{Svc: service, Pod: pod})
+			return true
+		})
+		return true
+	})
+
+	var index = 0
+
+	for namespace := range boxes {
+		for i := 0; i < len(boxes[namespace]); i++ {
+			var box = boxes[namespace][i]
+			table.Row(
+				box.Svc.Namespace,
+				box.Svc.Name,
+				box.Pod.Name,
+				GetAge(box.Pod.Age),
+				box.Pod.Restarts,
+				box.Pod.Phase,
+				box.Svc.ClusterIP,
+				box.Pod.IP,
+				box.Svc.Type,
+				utils.ServicePortToString(box.Svc.Port),
+			)
 		}
 
-		servicesMap[app.Record.Services[i].Namespace] =
-			append(servicesMap[app.Record.Services[i].Namespace], app.Record.Services[i])
-	}
+		index++
 
-	for namespace := range servicesMap {
-		servicesList = append(servicesList, servicesMap[namespace])
-	}
-
-	for i := 0; i < len(servicesList); i++ {
-		for j := 0; j < len(servicesList[i]); j++ {
-			for k := 0; k < len(servicesList[i][j].Pod); k++ {
-				var svc = servicesList[i][j]
-				var pod = svc.Pod[k]
-
-				table.Row(
-					svc.Namespace,
-					svc.Name,
-					pod.Name,
-					GetAge(pod.Age),
-					pod.Restarts,
-					pod.Phase,
-					svc.ClusterIP,
-					pod.IP,
-					svc.Type,
-					utils.ServicePortToString(svc.Port),
-				)
-			}
-		}
-		if i != len(servicesList)-1 {
-			table.Row("-", "-", "-", "-", "-", "-", "-", "-")
+		if index != len(boxes) {
+			table.Row("-", "-", "-", "-", "-", "-", "-", "-", "-", "-")
 		}
 	}
 

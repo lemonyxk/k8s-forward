@@ -12,14 +12,11 @@ package utils
 
 import (
 	"fmt"
-	"io"
+	"math/rand"
 	"os"
 	"strings"
 
-	"github.com/lemonyxk/k8s-forward/app"
-	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 func ReplaceString(s string, oList []string, nList []string) string {
@@ -94,27 +91,6 @@ func HasArgs(flag ...string) bool {
 	return false
 }
 
-func GenerateDeployment() (*v1.Deployment, error) {
-	var f, err = app.Temp.Open("temp/deployment.yaml")
-	if err != nil {
-		return nil, err
-	}
-
-	bts, err := io.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-
-	var deployment v1.Deployment
-
-	err = yaml.Unmarshal(bts, &deployment)
-	if err != nil {
-		return nil, err
-	}
-
-	return &deployment, nil
-}
-
 func GetServerPorts(serverPorts []v12.ServicePort) []string {
 	var ports []string
 	for i := 0; i < len(serverPorts); i++ {
@@ -129,4 +105,44 @@ func ServicePortToString(serverPorts []v12.ServicePort) string {
 		ports = append(ports, fmt.Sprintf("%d:%s/%s", serverPorts[i].Port, serverPorts[i].TargetPort.String(), serverPorts[i].Protocol))
 	}
 	return strings.Join(ports, ",")
+}
+
+func Match(labels map[string]string, selector map[string]string) bool {
+	for k1, v1 := range labels {
+		if selector[k1] == v1 {
+			return true
+		}
+	}
+	return false
+}
+
+func MakeLabels(str string) map[string]string {
+	var res = make(map[string]string)
+	var arr = strings.Split(str, ",")
+	for i := 0; i < len(arr); i++ {
+		var v = strings.Split(arr[i], "=")
+		if len(v) != 2 {
+			continue
+		}
+		res[v[0]] = v[1]
+	}
+
+	return res
+}
+
+func MakeLabelsString(labels map[string]string) string {
+	var res = ""
+	for k, v := range labels {
+		res += k + "=" + v + ","
+	}
+	return strings.TrimRight(res, ",")
+}
+
+func RandomString(n int) string {
+	var letter = []byte("0123456789abcdefghijklmnopqrstuvwxyz")
+	var res []byte
+	for i := 0; i < n; i++ {
+		res = append(res, letter[rand.Intn(len(letter))])
+	}
+	return string(res)
 }

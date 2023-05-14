@@ -14,16 +14,19 @@ import (
 	"os"
 
 	"github.com/lemonyxk/k8s-forward/app"
-	"github.com/lemonyxk/k8s-forward/config"
 	"github.com/lemonyxk/k8s-forward/dns"
 	"github.com/lemonyxk/k8s-forward/ipc"
 	"github.com/lemonyxk/k8s-forward/k8s"
-	"github.com/lemonyxk/k8s-forward/net"
+	"github.com/lemonyxk/k8s-forward/services"
 )
 
-func Clean(record *config.Record) {
+func Clean(services *services.Services) {
 
-	if record == nil {
+	if services == nil {
+		return
+	}
+
+	if len(services.Namespaces()) == 0 {
 		return
 	}
 
@@ -35,17 +38,15 @@ func Clean(record *config.Record) {
 		app.Client = k8s.NewClient()
 	}
 
-	// k8s.UnForwardServiceAll()
-
 	ipc.Close()
 
-	net.DeleteNetWork(record)
+	app.DeleteNetWork(services)
 
-	dns.DeleteNameServer(record)
+	dns.DeleteNameServer(services)
 
-	UnScaleAll(record)
+	k8s.UnSwitchScaleAll(services)
 
-	UnDeploymentAll(record)
+	k8s.UnSwitchDeploymentAll(services)
 
-	_ = os.RemoveAll(app.Config.RecordPath)
+	_ = os.RemoveAll(app.Config.HomePath)
 }

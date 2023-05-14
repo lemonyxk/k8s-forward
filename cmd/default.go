@@ -21,9 +21,9 @@ func Default(args []string) string {
 	}
 
 	switch os.Args[1] {
-	case "switch", "-s":
+	case "switch":
 		return Switch()
-	case "recover", "-r":
+	case "recover":
 		return Recover()
 	default:
 		return Help()

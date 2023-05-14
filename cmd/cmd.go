@@ -13,17 +13,16 @@ package cmd
 import (
 	"os"
 
+	"github.com/lemonyxk/k8s-forward/app"
 	"github.com/lemonyxk/k8s-forward/ipc"
-	"github.com/lemonyxk/k8s-forward/k8s"
 )
 
 func Cmd() {
 	switch os.Args[1] {
 	case "connect":
-		Clean(k8s.GetRecordFromFile())
 		Connect()
 	case "clean":
-		Clean(k8s.GetRecordFromFile())
+		Clean(app.LoadAllServices())
 	case "help":
 		println(Help())
 	case "ssh":

@@ -37,6 +37,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/lemonyxk/caller v0.0.0-20230423070323-e226a04be497 // indirect
+	github.com/lemonyxk/structure v0.0.0-20230322000315-cef25fa7c154 // indirect
 	github.com/lemoyxk/caller v0.0.0-20210923041650-ed223e41b72c // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect

@@ -110,6 +110,8 @@ github.com/lemonyxk/exception v0.0.0-20220526113322-a27eb8cdffce h1:P6oXKCu6S0Lp
 github.com/lemonyxk/exception v0.0.0-20220526113322-a27eb8cdffce/go.mod h1:HEUeCbZDtPCKnGGS/tyQOfCHaJsoTG3p+36/zs7sIN4=
 github.com/lemonyxk/promise v0.0.0-20220524105311-4bac06bf0095 h1:n5yDdLyfqpFgq52ilpEg7iXN3yQik44xMLBt+wYLxMQ=
 github.com/lemonyxk/promise v0.0.0-20220524105311-4bac06bf0095/go.mod h1:f/bavXinnw2NOF9Juc55A0+tiskc6GnO+ATZ1xKKAMQ=
+github.com/lemonyxk/structure v0.0.0-20230322000315-cef25fa7c154 h1:Buw30PZA0kjVlLADXZvuzVio6bgpQmglq3t0LcTk2Wc=
+github.com/lemonyxk/structure v0.0.0-20230322000315-cef25fa7c154/go.mod h1:7nt3U1dKeVPpqdhrxvYgfftsABObkjHky6kf6ylYfEI=
 github.com/lemoyxk/caller v0.0.0-20210923041650-ed223e41b72c h1:igVYbVGvFPB2xzlTfxx/4zaEMFN6/ZKOXt5lszaTMnM=
 github.com/lemoyxk/caller v0.0.0-20210923041650-ed223e41b72c/go.mod h1:J+iyY3zK37N8XualW5SB5DZmOgyffgs4P42M1jL9j8s=
 github.com/lemoyxk/utils v1.0.0 h1:ladcLEjLd2kilk6eK4A0qdPUgis6pG+KaoFUO3JXu2g=

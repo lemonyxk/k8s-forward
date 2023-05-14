@@ -11,7 +11,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -20,15 +19,12 @@ import (
 
 	"github.com/lemonyxk/console"
 	"github.com/lemonyxk/k8s-forward/app"
-	"github.com/lemonyxk/k8s-forward/config"
 	"github.com/lemonyxk/k8s-forward/k8s"
-	"github.com/lemonyxk/k8s-forward/net"
+	"github.com/lemonyxk/k8s-forward/services"
 	"github.com/lemonyxk/k8s-forward/ssh"
 	"github.com/lemonyxk/k8s-forward/utils"
 	utils2 "github.com/lemoyxk/utils"
-	v12 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	v1 "k8s.io/api/core/v1"
 )
 
 func Switch() string {
@@ -61,121 +57,86 @@ func Switch() string {
 
 func doSwitch(resource string, namespace string, name string, port int, image string) string {
 
-	var client = app.Client
-
 	resource = strings.ToLower(resource)
 
-	var scale, err = GetScale(resource, namespace, name)
+	var scale, err = k8s.GetScale(resource, namespace, name)
 	if err != nil {
 		return err.Error()
 	}
 
 	// match service
-	var service *config.Service
-	for i := 0; i < len(app.Record.Services); i++ {
-		if k8s.Match(k8s.MakeLabels(scale.Status.Selector), app.Record.Services[i].Selector) {
-			service = app.Record.Services[i]
-			break
+	var svc *services.Service
+	app.Services.Range(func(name string, service *services.Service) bool {
+		if utils.Match(utils.MakeLabels(scale.Status.Selector), service.Selector) {
+			svc = service
+			return false
 		}
-	}
+		return true
+	})
 
-	if service == nil {
+	if svc == nil {
 		return fmt.Sprintf("%s %s %s not match service", resource, namespace, name)
 	}
 
-	if service.Switch != nil {
+	if svc.Switch != nil {
 		return fmt.Sprintf("%s %s %s has switch", resource, namespace, name)
 	}
 
-	service.Switch = &config.Switch{}
+	svc.Switch = &services.Switch{}
 
-	console.Info("match service:", service.Name, "replicas:", scale.Spec.Replicas)
+	console.Info("match service:", svc.Name, "replicas:", scale.Spec.Replicas)
 
-	if int(service.ForwardNumber) == len(service.Pod) {
-		for i := 0; i < len(service.StopForward); i++ {
-			service.StopForward[i] <- struct{}{}
-		}
-	}
-
-	// delete old pod ip
-	for i := 0; i < len(service.Pod); i++ {
-		app.Record.History = append(app.Record.History, service.Pod[i])
-	}
-
-	service.Pod = nil
-
-	us, err := UpdateScale(scale, 0)
+	_, err = k8s.Scale(scale, 0)
 	if err != nil {
 		return err.Error()
 	}
 
-	service.Switch.Scale = scale
+	svc.Switch.Scale = scale
 
-	k8s.SaveRecordToFile(app.Record)
+	app.SaveAllServices(app.Services)
 
-	console.Info("update service:", service.Name, "replicas:", us.Spec.Replicas)
-
-	deployment, err := utils.GenerateDeployment()
+	deployment, err := k8s.GenerateDeployment()
 	if err != nil {
 		return err.Error()
 	}
 
-	deployment.ObjectMeta.Name = service.Name + "-" + utils2.Rand.UUID()
-	deployment.ObjectMeta.Namespace = service.Namespace
-	deployment.ObjectMeta.Labels = service.Selector
-	deployment.Spec.Template.ObjectMeta.Labels = service.Selector
-	deployment.Spec.Selector.MatchLabels = service.Selector
+	deployment.ObjectMeta.Name = svc.Name
+	deployment.ObjectMeta.Namespace = svc.Namespace
+	deployment.ObjectMeta.Labels = svc.Selector
+	deployment.Spec.Selector.MatchLabels = svc.Selector
+	deployment.Spec.Template.ObjectMeta.Labels = svc.Selector
 	deployment.Spec.Template.Spec.Containers[0].Image = image
+	deployment.Spec.Template.Spec.Containers[0].Name = svc.Name
+	deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = 22
+	deployment.Spec.Template.Spec.Containers[0].Ports[0].Name = app.SSHForwardKey
 
-	_, err = client.AppsV1().Deployments(service.Namespace).Create(context.Background(), deployment, v1.CreateOptions{})
-	if err != nil {
-		return err.Error()
-	}
-
-	service.Switch.Deployment = deployment
-
-	k8s.SaveRecordToFile(app.Record)
-
-	watch, err := client.CoreV1().Pods(service.Namespace).Watch(context.Background(), v1.ListOptions{
-		Watch:         true,
-		LabelSelector: labels.Set(service.Selector).AsSelector().String(),
-	})
-	if err != nil {
-		return err.Error()
-	}
-
-	var readyPod = make(chan struct{})
-	var pod *v12.Pod
-
+	var ch = make(chan struct{})
+	var pods []*v1.Pod
 	go func() {
-		for {
-			select {
-			case event, ok := <-watch.ResultChan():
-				if !ok {
-					readyPod <- struct{}{}
-					return
-				}
-				p, ok := event.Object.(*v12.Pod)
-				if !ok {
-					continue
-				}
-
-				if strings.HasPrefix(p.Name, deployment.ObjectMeta.Name) {
-					if p.Status.Phase == v12.PodRunning && p.Namespace == service.Namespace {
-						pod = p
-						watch.Stop()
-					}
-				}
-			}
-		}
+		pods = <-app.Watch.Watch(&app.Filter{
+			Namespace: svc.Namespace,
+			Selector:  svc.Selector,
+			Name:      deployment.Name,
+			Number:    1,
+		})
+		ch <- struct{}{}
 	}()
 
-	<-readyPod
+	deploy, err := k8s.Deployment(deployment)
+	if err != nil {
+		return err.Error()
+	}
 
-	console.Info("create deployment:", deployment.ObjectMeta.Name)
+	svc.Switch.Deployment = deploy
 
-	service.Switch.Pod = &config.Pod{
-		Namespace:   service.Namespace,
+	app.SaveAllServices(app.Services)
+
+	<-ch
+
+	pod := pods[0]
+
+	svc.Switch.Pod = &services.Pod{
+		Namespace:   svc.Namespace,
 		Name:        pod.ObjectMeta.Name,
 		IP:          pod.Status.PodIP,
 		Labels:      pod.Labels,
@@ -184,26 +145,24 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 		Restarts:    pod.Status.ContainerStatuses[0].RestartCount,
 		Phase:       pod.Status.Phase,
 		Containers:  pod.Spec.Containers,
+		Forwarded:   false,
+		StopForward: nil,
 	}
 
-	service.Switch.Status = config.Start
+	app.SaveAllServices(app.Services)
 
-	net.CreateNetWorkByIp(service.Switch.Pod)
-
-	k8s.SaveRecordToFile(app.Record)
-
-	readyPod, stopPod, err := k8s.ForwardPod(namespace, pod.ObjectMeta.Name, []string{"0.0.0.0"}, []string{"2222:2222"})
+	readyPod, stopPod, err := k8s.ForwardPod(svc.Switch.Pod, []string{"0.0.0.0"}, []string{"2222:2222"})
 	if err != nil {
 		return err.Error()
 	}
 
 	<-readyPod
 
-	service.Switch.StopForward = stopPod
+	svc.Switch.StopForward = stopPod
 
 	// ssh
-	var remoteAddr = fmt.Sprintf("%s:%d", pod.Status.PodIP, service.Port[0].Port)
-	var localAddr = fmt.Sprintf("%s:%d", "127.0.0.1", utils2.Ternary.Int(port == 0, int(service.Port[0].Port), port))
+	var remoteAddr = fmt.Sprintf("%s:%d", pod.Status.PodIP, svc.Port[0].Port)
+	var localAddr = fmt.Sprintf("%s:%d", "127.0.0.1", utils2.Ternary.Int(port == 0, int(svc.Port[0].Port), port))
 	stopSSH, _, err := ssh.RemoteForward(ssh.ForwardConfig{
 		UserName:          "root",
 		Password:          "root",
@@ -218,7 +177,7 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 		return err.Error()
 	}
 
-	service.Switch.StopSSH = stopSSH
+	svc.Switch.StopSSH = stopSSH
 
 	console.Warning("switch", resource, namespace, name, "success")
 
