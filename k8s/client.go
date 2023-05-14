@@ -25,6 +25,8 @@ func NewRestConfig() *rest.Config {
 		console.Exit(err)
 	}
 
+	// config.Timeout = time.Second * 6
+
 	return config
 }
 

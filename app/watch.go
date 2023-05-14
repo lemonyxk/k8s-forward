@@ -62,20 +62,45 @@ func (w *Watcher) Run() {
 
 		var namespace = w.Namespaces[i]
 
-		// var stop = make(chan struct{})
+		console.Info("watch namespace:", namespace)
+
 		// factory := informers.NewSharedInformerFactoryWithOptions(Client, 0, informers.WithNamespace(namespace))
 		// informer := factory.Core().V1().Pods().Informer()
-		// _, err := informer.AddEventHandler(w)
+		// _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		// 	AddFunc: func(obj interface{}) {
+		// 		pod, ok := obj.(*v12.Pod)
+		// 		if !ok {
+		// 			return
+		// 		}
+		// 		w.OnAdd(pod)
+		// 	},
+		// 	DeleteFunc: func(obj interface{}) {
+		// 		pod, ok := obj.(*v12.Pod)
+		// 		if !ok {
+		// 			return
+		// 		}
+		// 		w.OnDelete(pod)
+		// 	},
+		// 	UpdateFunc: func(oldObj, newObj interface{}) {
+		// 		pod, ok := newObj.(*v12.Pod)
+		// 		if !ok {
+		// 			return
+		// 		}
+		// 		w.OnUpdate(pod)
+		// 	},
+		// })
 		// if err != nil {
 		// 	console.Error(err)
 		// }
 		//
-		// factory.Start(stop)
+		// err = informer.SetWatchErrorHandler(func(r *cache.Reflector, err error) {
+		// 	console.Error(err)
+		// })
+		// if err != nil {
+		// 	console.Error(err)
+		// }
 		//
-		// go func() {
-		// 	<-stop
-		// 	log.Println("stop")
-		// }()
+		// factory.Start(wait.NeverStop)
 
 		watch, err := Client.CoreV1().Pods(namespace).Watch(context.Background(), v1.ListOptions{
 			Watch: true,
@@ -90,6 +115,7 @@ func (w *Watcher) Run() {
 				select {
 				case event, ok := <-watch.ResultChan():
 					if !ok {
+						console.Error("lose connection with k8s")
 						return
 					}
 
@@ -105,8 +131,6 @@ func (w *Watcher) Run() {
 						go w.OnAdd(pod)
 					case watch2.Modified:
 						go w.OnUpdate(pod)
-					case watch2.Error:
-						console.Error("watch error:", event.Type, pod.Namespace, pod.Name, pod.Status.Phase)
 					default:
 
 					}
