@@ -146,7 +146,7 @@ func (t *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		service = app.Services.Get(domainSplit[1], domainSplit[0])
 		ok = service != nil
 		if service == nil {
-			service = app.Services.Get(domainSplit[1], "default")
+			service = app.Services.Get("default", domainSplit[1])
 			ok = service != nil
 			if service != nil && service.ClusterIP == "None" {
 				ok = false
@@ -399,6 +399,7 @@ func addNameServerDarwin(svs *services.Services) {
 	_ = os.Mkdir("/etc/resolver", 0777)
 
 	var search = []string{
+		"default",
 		"svc",
 		"svc.cluster.local",
 	}
@@ -415,20 +416,21 @@ func addNameServerDarwin(svs *services.Services) {
 
 	svs.Range(func(name string, service *services.Service) bool {
 		var search = []string{
+			service.Namespace,
 			"svc",
 			"svc.cluster.local",
 		}
 
-		if service.Namespace == "default" {
-			search = append(search, service.Namespace+".svc")
-			search = append(search, service.Namespace+".svc.cluster.local")
-		}
+		// if service.Namespace == "default" {
+		// 	search = append(search, service.Namespace+".svc")
+		// 	search = append(search, service.Namespace+".svc.cluster.local")
+		// }
 
 		var model, _ = app.Temp.ReadFile("temp/resolv.conf")
 		var res = utils2.ReplaceString(
 			string(model),
 			[]string{"@domain", "@search", "@ip", "@port"},
-			[]string{name, strings.Join(search, " "), "127.0.0.1", "10053"},
+			[]string{service.Name, strings.Join(search, " "), "127.0.0.1", "10053"},
 		)
 
 		var domain = fmt.Sprintf("%s.svc.cluster.local", name)
@@ -458,6 +460,7 @@ func DeleteNameServer(svs *services.Services) {
 func deleteNameServerDarwin(svs *services.Services) {
 
 	var search = []string{
+		"default",
 		"svc",
 		"svc.cluster.local",
 	}
