@@ -100,7 +100,7 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 		return err.Error()
 	}
 
-	deployment.ObjectMeta.Name = svc.Name
+	deployment.ObjectMeta.Name = svc.Name + "-" + utils.RandomString(4)
 	deployment.ObjectMeta.Namespace = svc.Namespace
 	deployment.ObjectMeta.Labels = svc.Selector
 	deployment.Spec.Selector.MatchLabels = svc.Selector
@@ -108,7 +108,7 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 	deployment.Spec.Template.Spec.Containers[0].Image = image
 	deployment.Spec.Template.Spec.Containers[0].Name = svc.Name
 	deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = 22
-	deployment.Spec.Template.Spec.Containers[0].Ports[0].Name = app.SSHForwardKey
+	deployment.Spec.Template.Spec.Containers[0].Ports[0].Name = "ssh"
 
 	var ch = make(chan struct{})
 	var pods []*v1.Pod
@@ -122,12 +122,12 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 		ch <- struct{}{}
 	}()
 
-	deploy, err := k8s.Deployment(deployment)
+	_, err = k8s.Deployment(deployment)
 	if err != nil {
 		return err.Error()
 	}
 
-	svc.Switch.Deployment = deploy
+	svc.Switch.Deployment = deployment
 
 	app.SaveAllServices(app.Services)
 
