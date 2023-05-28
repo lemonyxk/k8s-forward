@@ -52,10 +52,19 @@ func Switch() string {
 		}
 	}
 
-	return doSwitch(resource, namespace, name, port, image)
+	var host = "127.0.0.1"
+	var hostStr = utils.GetArgs("-h", "--host")
+	if hostStr != "" {
+		host = hostStr
+		if !utils2.Addr.IsLocalIP(host) {
+			return "host is not local ip"
+		}
+	}
+
+	return doSwitch(resource, namespace, name, host, port, image)
 }
 
-func doSwitch(resource string, namespace string, name string, port int, image string) string {
+func doSwitch(resource string, namespace string, name string, host string, port int, image string) string {
 
 	resource = strings.ToLower(resource)
 
@@ -162,7 +171,10 @@ func doSwitch(resource string, namespace string, name string, port int, image st
 
 	// ssh
 	var remoteAddr = fmt.Sprintf("%s:%d", pod.Status.PodIP, svc.Port[0].Port)
-	var localAddr = fmt.Sprintf("%s:%d", "127.0.0.1", utils2.Ternary.Int(port == 0, int(svc.Port[0].Port), port))
+	var localAddr = fmt.Sprintf("%s:%d",
+		utils2.Ternary.String(host == "", "127.0.0.1", host),
+		utils2.Ternary.Int(port == 0, int(svc.Port[0].Port), port),
+	)
 	stopSSH, _, err := ssh.RemoteForward(ssh.ForwardConfig{
 		UserName:          "root",
 		Password:          "root",
