@@ -40,6 +40,8 @@ func Clean(services *services.Services) {
 
 	ipc.Close()
 
+	app.Watch.Stop()
+
 	app.DeleteNetWork(services)
 
 	dns.DeleteNameServer(services)

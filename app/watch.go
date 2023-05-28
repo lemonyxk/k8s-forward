@@ -34,6 +34,7 @@ func NewWatcher(namespaces ...string) *Watcher {
 }
 
 type Watcher struct {
+	Watches    []watch2.Interface
 	StartTime  time.Time
 	Listen     []*Filter
 	Namespaces []string
@@ -54,6 +55,12 @@ func (w *Watcher) Watch(filter *Filter) chan []*v12.Pod {
 	filter.ch = make(chan []*v12.Pod)
 	w.Listen = append(w.Listen, filter)
 	return filter.ch
+}
+
+func (w *Watcher) Stop() {
+	for i := 0; i < len(w.Watches); i++ {
+		w.Watches[i].Stop()
+	}
 }
 
 func (w *Watcher) Run() {
@@ -109,6 +116,8 @@ func (w *Watcher) Run() {
 		if err != nil {
 			console.Exit(err)
 		}
+
+		w.Watches = append(w.Watches, watch)
 
 		go func() {
 			for {
